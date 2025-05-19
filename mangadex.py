@@ -89,7 +89,7 @@ def _get_entry(session: requests.Session, entry_status: EntryStatus) -> Entry:
     alt_title_en = _get_alternative_title(data, 'en')
     alt_title_ja_ro = _get_alternative_title(data, 'ja-ro')
     alt_title_ja = _get_alternative_title(data, 'ja')
-    url = f'https://mangadex.org/title/{data['data']['id']}'
+    url = 'https://mangadex.org/title/' + data['data']['id']
     response.close()
     return Entry(id, type, entry_status.reading_status, title_language, title, alt_title_en, alt_title_ja_ro, alt_title_ja, url)
 
