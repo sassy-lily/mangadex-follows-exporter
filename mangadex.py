@@ -108,7 +108,7 @@ def _get_statuses(session: requests.Session) -> collections.abc.Generator[EntryS
 
 
 def _main() -> None:
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(interpolation=None)
     parser.read('configuration.ini', 'utf-8')
     username = parser.get('mangadex', 'username')
     password = parser.get('mangadex', 'password')
