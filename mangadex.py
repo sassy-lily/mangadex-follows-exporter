@@ -222,11 +222,6 @@ class MangaUpdatesExporter(Exporter):
             raise _get_error(response)
         self._session.headers['Authorization'] = 'Bearer ' + response_data['context']['session_token']
 
-    def _does_entry_exists(self: typing.Self, id: int) -> bool:
-        time.sleep(1.1)
-        response = self._session.get('https://api.mangaupdates.com/v1/series/' + str(id))
-        return response.status_code == 200
-
     def _fetch_already_tracked_entries(self: typing.Self) -> collections.abc.Iterable[int]:
         print('Fetching already tracked entries.')
         page = 1
@@ -268,13 +263,10 @@ class MangaUpdatesExporter(Exporter):
                 if id is None:
                     print('"' + manga.title + '" (' + manga.id + ') has NOT be added, its ID is not available in MangaDex.')
                     errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, its ID is not available in MangaDex. Check ' + manga.url + '\n')
+                    errors.flush()
                     continue
                 if id in already_tracked_entries:
                     print('"' + manga.title + '" is already tracked.')
-                    continue
-                if not self._does_entry_exists(id):
-                    print('"' + manga.title + '" (' + manga.id + ') has NOT be added, it does not exist in MangaUpdates.')
-                    errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, it does not exist in MangaUpdates. Check ' + manga.url + '\n')
                     continue
                 time.sleep(1.1)
                 request_data = [
@@ -286,8 +278,19 @@ class MangaUpdatesExporter(Exporter):
                     }
                 ]
                 response = self._session.post('https://api.mangaupdates.com/v1/lists/series', json=request_data)
-                if response.status_code != 200:
+                if response.status_code == 400:
+                    response_data = response.json()
+                    reason = response_data['context']['errors'][0]['error']
+                    if reason == 'That series does not exist':
+                        print('"' + manga.title + '" (' + manga.id + ') has NOT be added, it does not exist in MangaUpdates.')
+                        errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, it does not exist in MangaUpdates. Check ' + manga.url + '\n')
+                        errors.flush()
+                        continue
+                    else:
+                        raise _get_error(response)
+                elif response.status_code != 200:
                     raise _get_error(response)
+                already_tracked_entries.add(id)
                 print('"' + manga.title + '" has been added.')
         print('MangaUpdates import completed.')
 
