@@ -4,6 +4,7 @@ import configparser
 import contextlib
 import csv
 import io
+import json
 import time
 import traceback
 import types
@@ -99,7 +100,6 @@ class MangaDexClient(contextlib.AbstractContextManager):
 
     def _get_manga(self: typing.Self, status: Status) -> Manga:
         self._authorize()
-        print('Fetching manga ' + status.id)
         response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
         if response.status_code != 200:
             raise _get_error(response)
@@ -113,6 +113,7 @@ class MangaDexClient(contextlib.AbstractContextManager):
         alternative_titles = list(self._get_alternative_titles(data))
         external_links = list(self._get_external_links(data))
         url = 'https://mangadex.org/title/' + data['data']['id']
+        print('Fetched entry "' + title + '".')
         return Manga(id, type, title_language, title, status.status, alternative_titles, external_links, url)
 
     def _get_statuses(self: typing.Self) -> collections.abc.Generator[Status]:
@@ -180,6 +181,117 @@ class CsvExporter(Exporter):
             writer.writerow([manga.id, manga.type, manga.status, manga.title_language, manga.title, alt_title_en, alt_title_ja_ro, alt_title_ja, manga.url])
 
 
+class MangaUpdatesCredentials(typing.NamedTuple):
+    username: str
+    password: str
+
+
+class MangaUpdatesExporter(Exporter):
+
+    _credentials: MangaUpdatesCredentials
+    _errors_path: str
+    _mappings: dict[str, str]
+    _mappings_path: str
+    _session: requests.Session
+
+    def __enter__(self: typing.Self) -> typing.Self:
+        with open(self._mappings_path, 'rt', encoding='utf-8') as file:
+            self._mappings = json.load(file)
+        self._session = requests.Session()
+        return self
+
+    def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
+        self.close()
+
+    def __init__(self: typing.Self, credentials: MangaUpdatesCredentials, mappings_path: str, errors_path: str) -> None:
+        self._credentials = credentials
+        self._errors_path = errors_path
+        self._mappings_path = mappings_path
+
+    def _authenticate(self: typing.Self) -> None:
+        print('Authenticating in MangaUpdates.')
+        request_data = {
+            'username': self._credentials.username,
+            'password': self._credentials.password
+        }
+        response = self._session.put('https://api.mangaupdates.com/v1/account/login', json=request_data)
+        if response.status_code != 200:
+            raise _get_error(response)
+        response_data = response.json()
+        if response_data['status'] != 'success':
+            raise _get_error(response)
+        self._session.headers['Authorization'] = 'Bearer ' + response_data['context']['session_token']
+
+    def _does_entry_exists(self: typing.Self, id: int) -> bool:
+        time.sleep(1.1)
+        response = self._session.get('https://api.mangaupdates.com/v1/series/' + str(id))
+        return response.status_code == 200
+
+    def _fetch_already_tracked_entries(self: typing.Self) -> collections.abc.Iterable[int]:
+        print('Fetching already tracked entries.')
+        page = 1
+        size = 100
+        while True:
+            time.sleep(1.1)
+            request_data = {
+                'page': page,
+                'perpage': size
+            }
+            response = self._session.post('https://api.mangaupdates.com/v1/lists/0/search', json=request_data)
+            if response.status_code != 200:
+                raise _get_error(response)
+            response_data = response.json()
+            if len(response_data['results']) == 0:
+                return
+            for result in response_data['results']:
+                yield result['record']['series']['id']
+            page += 1
+
+    def _get_id(self: typing.Self, manga: Manga) -> int | None:
+        for external_link in manga.external_links:
+            if external_link.key == 'mu':
+                if external_link.value in self._mappings:
+                    return int(self._mappings[external_link.value], 36)
+                return int(external_link.value, 36)
+        return None
+
+    def close(self: typing.Self) -> None:
+        self._session.close()
+
+    def export(self: typing.Self, mangas: collections.abc.Iterable[Manga]) -> None:
+        print('Importing in MangaUpdates.')
+        self._authenticate()
+        already_tracked_entries = set(self._fetch_already_tracked_entries())
+        with open(self._errors_path, 'wt', encoding='utf-8') as errors:
+            for manga in mangas:
+                id = self._get_id(manga)
+                if id is None:
+                    print('"' + manga.title + '" (' + manga.id + ') has NOT be added, its ID is not available in MangaDex.')
+                    errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, its ID is not available in MangaDex. Check ' + manga.url + '\n')
+                    continue
+                if id in already_tracked_entries:
+                    print('"' + manga.title + '" is already tracked.')
+                    continue
+                if not self._does_entry_exists(id):
+                    print('"' + manga.title + '" (' + manga.id + ') has NOT be added, it does not exist in MangaUpdates.')
+                    errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, it does not exist in MangaUpdates. Check ' + manga.url + '\n')
+                    continue
+                time.sleep(1.1)
+                request_data = [
+                    {
+                        'series': {
+                            'id': id
+                        },
+                        'list_id': 0
+                    }
+                ]
+                response = self._session.post('https://api.mangaupdates.com/v1/lists/series', json=request_data)
+                if response.status_code != 200:
+                    raise _get_error(response)
+                print('"' + manga.title + '" has been added.')
+        print('MangaUpdates import completed.')
+
+
 def _get_error(response: requests.Response) -> RuntimeError:
     error = RuntimeError('Request failed.')
     error.add_note(f'URL: {response.request.url}')
@@ -197,8 +309,11 @@ def run() -> None:
     mangadex_client_id = parser.get('mangadex', 'client_id')
     mangadex_client_secret = parser.get('mangadex', 'client_secret')
     mangadex_credentials = MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
+    mangaupdates_username = parser.get('mangaupdates', 'username')
+    mangaupdates_password = parser.get('mangaupdates', 'password')
+    mangaupdates_credentials = MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
     with MangaDexClient(mangadex_credentials) as mangadex:
-        with CsvExporter('follows.csv') as exporter:
+        with MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', 'mangaupdates-errors.txt') as exporter:
             mangas = list(mangadex.get_follows())
             exporter.export(mangas)
     print('Export completed.')
