@@ -1,69 +1,183 @@
+import abc
 import collections.abc
 import configparser
+import contextlib
 import csv
+import io
 import time
+import traceback
+import types
 import typing
 
 import requests
 
 
-class EntryStatus(typing.NamedTuple):
-    entry_id: str
-    reading_status: str
+class Status(typing.NamedTuple):
+    id: str
+    status: str
 
 
-class Entry(typing.NamedTuple):
+class AlternativeTitle(typing.NamedTuple):
+    language: str
+    title: str
+
+
+class ExternalLink(typing.NamedTuple):
+    key: str
+    value: str
+
+
+class Manga(typing.NamedTuple):
     id: str
     type: str
-    status: str
     title_language: str
     title: str
-    alt_title_en: str
-    alt_title_ja_ro: str
-    alt_title_ja: str
+    status: str
+    alternative_titles: list[AlternativeTitle]
+    external_links: list[ExternalLink]
     url: str
 
 
-def export(username: str, password: str, client_id: str, client_secret: str) -> None:
-    print('Starting.')
-    session = requests.Session()
-    authorization_expires_at = _authorize(session, username, password, client_id, client_secret)
-    file = open('titles.csv', 'wt', encoding='utf-8', newline='')
-    writer = csv.writer(file)
-    writer.writerow(('ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative English Title', 'Alternative Romaji title', 'Alternative Japanese title', 'URL'))
-    for entry_status in list(_get_statuses(session)):
-        if authorization_expires_at < time.time():
-            authorization_expires_at = _authorize(session, username, password, client_id, client_secret)
-        entry = _get_entry(session, entry_status)
-        writer.writerow((entry.id, entry.type, entry.status, entry.title_language, entry.title, entry.alt_title_en, entry.alt_title_ja_ro, entry.alt_title_ja, entry.url))
-    file.close()
-    session.close()
-    print('Completed.')
+class MangaDexCredentials(typing.NamedTuple):
+    user: str
+    password: str
+    client_id: str
+    client_secret: str
 
 
-def _authorize(session: requests.Session, username: str, password: str, client_id: str, client_secret: str) -> float:
-    print('Authenticating.')
-    response = session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', {
-        'grant_type': 'password',
-        'username': username,
-        'password': password,
-        'client_id': client_id,
-        'client_secret': client_secret
-    })
-    if response.status_code != 200:
-        raise _get_error(response)
-    data = response.json()
-    expires_in = time.time() + (int(data['expires_in']) / 2)
-    session.headers['Authorization'] = f'{data['token_type']} {data['access_token']}'
-    response.close()
-    return expires_in
+class MangaDexClient(contextlib.AbstractContextManager):
+
+    _authentication_expires_at: float | None
+    _credentials: MangaDexCredentials | None
+    _session: requests.Session | None
+
+    def __enter__(self: typing.Self) -> typing.Self:
+        self._session = requests.Session()
+        return self
+
+    def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
+        self.close()
+
+    def __init__(self: typing.Self, credentials: MangaDexCredentials) -> None:
+        self._authentication_expires_at = None
+        self._credentials = credentials
+
+    def _authorize(self: typing.Self) -> None:
+        if self._authentication_expires_at is not None and self._authentication_expires_at > time.time():
+            return
+        print('Authenticating in MangaDex.')
+        request_data = {
+            'grant_type': 'password',
+            'username': self._credentials.user,
+            'password': self._credentials.password,
+            'client_id': self._credentials.client_id,
+            'client_secret': self._credentials.client_secret
+        }
+        response = self._session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', request_data)
+        if response.status_code != 200:
+            raise _get_error(response)
+        response_data = response.json()
+        access_token = response_data['access_token']
+        expires_in = response_data['expires_in']
+        token_type = response_data['token_type']
+        self._authentication_expires_at = time.time() + int(expires_in) / 2
+        self._session.headers['Authorization'] = token_type + ' ' + access_token
+
+    def _get_alternative_titles(self: typing.Self, data: typing.Any) -> collections.abc.Generator[AlternativeTitle]:
+        if 'altTitles' not in data['data']['attributes'] or data['data']['attributes']['altTitles'] is None:
+            return
+        for entry in data['data']['attributes']['altTitles']:
+            language = next(iter(entry))
+            title = entry[language]
+            yield AlternativeTitle(language, title)
+
+    def _get_external_links(self: typing.Self, data: typing.Any) -> collections.abc.Generator[ExternalLink]:
+        if 'links' not in data['data']['attributes'] or data['data']['attributes']['links'] is None:
+            return
+        for key, value in data['data']['attributes']['links'].items():
+            yield ExternalLink(key, value)
+
+    def _get_manga(self: typing.Self, status: Status) -> Manga:
+        self._authorize()
+        print('Fetching manga ' + status.id)
+        response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
+        if response.status_code != 200:
+            raise _get_error(response)
+        data = response.json()
+        if data['result'] != 'ok':
+            raise _get_error(response)
+        id = data['data']['id']
+        type = data['data']['type']
+        title_language = next(iter(data['data']['attributes']['title']))
+        title = data['data']['attributes']['title'][title_language]
+        alternative_titles = list(self._get_alternative_titles(data))
+        external_links = list(self._get_external_links(data))
+        url = 'https://mangadex.org/title/' + data['data']['id']
+        return Manga(id, type, title_language, title, status.status, alternative_titles, external_links, url)
+
+    def _get_statuses(self: typing.Self) -> collections.abc.Generator[Status]:
+        self._authorize()
+        print('Fetching statuses list.')
+        response = self._session.get('https://api.mangadex.org/manga/status')
+        if response.status_code != 200:
+            raise _get_error(response)
+        data = response.json()
+        if data['result'] != 'ok':
+            raise _get_error(response)
+        for id, status in data['statuses'].items():
+            yield Status(id, status)
+
+    def close(self: typing.Self) -> None:
+        self._session.close()
+
+    def get_follows(self: typing.Self) -> collections.abc.Generator[Manga]:
+        for status in list(self._get_statuses()):
+            yield self._get_manga(status)
 
 
-def _get_alternative_title(data: typing.Any, language: str) -> str:
-    for alt_title in data['data']['attributes']['altTitles']:
-        if language in alt_title:
-            return alt_title[language]
-    return ''
+class Exporter(contextlib.AbstractContextManager):
+
+    def __enter__(self: typing.Self) -> typing.Self:
+        return self
+
+    def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
+        pass
+
+    @abc.abstractmethod
+    def export(self: typing.Self, mangas: collections.abc.Iterable[Manga]) -> None:
+        raise NotImplementedError('This method has not been implemented.')
+
+
+class CsvExporter(Exporter):
+
+    _file: io.TextIOWrapper
+    _name: str
+
+    def __enter__(self: typing.Self) -> typing.Self:
+        self._file = open(self._name, 'wt', encoding='utf-8', newline='')
+        return self
+
+    def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
+        self._file.close()
+
+    def __init__(self: typing.Self, name: str):
+        self._name = name
+
+    def _get_alternative_title(self: typing.Self, manga: Manga, language: str) -> str:
+        for entry in manga.alternative_titles:
+            if entry.language == language:
+                return entry.title
+        return ''
+
+    def export(self: typing.Self, mangas: collections.abc.Iterable[Manga]) -> None:
+        print('Writing output file.')
+        writer = csv.writer(self._file)
+        writer.writerow(['ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative Title (EN)', 'Alternative Title (JA)', 'Alternative Title (romaji)', 'URL'])
+        for manga in mangas:
+            alt_title_en = self._get_alternative_title(manga, 'en')
+            alt_title_ja_ro = self._get_alternative_title(manga, 'ja')
+            alt_title_ja = self._get_alternative_title(manga, 'ja-RO')
+            writer.writerow([manga.id, manga.type, manga.status, manga.title_language, manga.title, alt_title_en, alt_title_ja_ro, alt_title_ja, manga.url])
 
 
 def _get_error(response: requests.Response) -> RuntimeError:
@@ -74,48 +188,29 @@ def _get_error(response: requests.Response) -> RuntimeError:
     return error
 
 
-def _get_entry(session: requests.Session, entry_status: EntryStatus) -> Entry:
-    print(f'Retrieving entry {entry_status.entry_id}.')
-    response = session.get(f'https://api.mangadex.org/manga/{entry_status.entry_id}')
-    if response.status_code != 200:
-        raise _get_error(response)
-    data = response.json()
-    if data['result'] != 'ok':
-        raise _get_error(response)
-    id = data['data']['id']
-    type = data['data']['type']
-    title_language = next(iter(data['data']['attributes']['title']))
-    title = data['data']['attributes']['title'][title_language]
-    alt_title_en = _get_alternative_title(data, 'en')
-    alt_title_ja_ro = _get_alternative_title(data, 'ja-ro')
-    alt_title_ja = _get_alternative_title(data, 'ja')
-    url = 'https://mangadex.org/title/' + data['data']['id']
-    response.close()
-    return Entry(id, type, entry_status.reading_status, title_language, title, alt_title_en, alt_title_ja_ro, alt_title_ja, url)
-
-
-def _get_statuses(session: requests.Session) -> collections.abc.Generator[EntryStatus]:
-    print('Fetching statuses.')
-    response = session.get('https://api.mangadex.org/manga/status')
-    if response.status_code != 200:
-        raise _get_error(response)
-    data = response.json()
-    if data['result'] != 'ok':
-        raise _get_error(response)
-    for entry_id, reading_status in data['statuses'].items():
-        yield EntryStatus(entry_id, reading_status)
-    response.close()
-
-
-def _main() -> None:
+def run() -> None:
+    print('Starting export.')
     parser = configparser.ConfigParser(interpolation=None)
     parser.read('configuration.ini', 'utf-8')
-    username = parser.get('mangadex', 'username')
-    password = parser.get('mangadex', 'password')
-    client_id = parser.get('mangadex', 'client_id')
-    client_secret = parser.get('mangadex', 'client_secret')
-    export(username, password, client_id, client_secret)
+    mangadex_username = parser.get('mangadex', 'username')
+    mangadex_password = parser.get('mangadex', 'password')
+    mangadex_client_id = parser.get('mangadex', 'client_id')
+    mangadex_client_secret = parser.get('mangadex', 'client_secret')
+    mangadex_credentials = MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
+    with MangaDexClient(mangadex_credentials) as mangadex:
+        with CsvExporter('follows.csv') as exporter:
+            mangas = list(mangadex.get_follows())
+            exporter.export(mangas)
+    print('Export completed.')
 
 
 if __name__ == '__main__':
-    _main()
+    try:
+        run()
+    except KeyboardInterrupt:
+        print('The script execution has been interrupted.')
+    except Exception:
+        details = traceback.format_exc()
+        print('An error occurred executing the script.')
+        print(details)
+    input('Press [enter] to exit.')

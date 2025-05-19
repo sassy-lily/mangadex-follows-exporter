@@ -2,5 +2,5 @@
 .venv
 build
 dist
+follows.csv
 mangadex.spec
-titles.csv
