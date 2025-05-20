@@ -171,7 +171,7 @@ class CsvExporter(Exporter):
         return ''
 
     def export(self: typing.Self, mangas: collections.abc.Iterable[Manga]) -> None:
-        print('Writing output file.')
+        print('Exporting to CSV.')
         writer = csv.writer(self._file)
         writer.writerow(['ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative Title (EN)', 'Alternative Title (JA)', 'Alternative Title (romaji)', 'URL'])
         for manga in mangas:
@@ -179,6 +179,7 @@ class CsvExporter(Exporter):
             alt_title_ja_ro = self._get_alternative_title(manga, 'ja')
             alt_title_ja = self._get_alternative_title(manga, 'ja-RO')
             writer.writerow([manga.id, manga.type, manga.status, manga.title_language, manga.title, alt_title_en, alt_title_ja_ro, alt_title_ja, manga.url])
+        print('Export completed.')
 
 
 class MangaUpdatesCredentials(typing.NamedTuple):
@@ -254,7 +255,7 @@ class MangaUpdatesExporter(Exporter):
         self._session.close()
 
     def export(self: typing.Self, mangas: collections.abc.Iterable[Manga]) -> None:
-        print('Importing in MangaUpdates.')
+        print('Exporting to MangaUpdates.')
         self._authenticate()
         already_tracked_entries = set(self._fetch_already_tracked_entries())
         with open(self._errors_path, 'wt', encoding='utf-8') as errors:
@@ -295,7 +296,7 @@ class MangaUpdatesExporter(Exporter):
                     raise _get_error(response)
                 already_tracked_entries.add(id)
                 print('"' + manga.title + '" has been added.')
-        print('MangaUpdates import completed.')
+        print('Export completed.')
 
 
 def _get_error(response: requests.Response) -> RuntimeError:
@@ -307,7 +308,7 @@ def _get_error(response: requests.Response) -> RuntimeError:
 
 
 def run() -> None:
-    print('Starting export.')
+    print('Starting process.')
     parser = configparser.ConfigParser(interpolation=None)
     parser.read('configuration.ini', 'utf-8')
     mangadex_username = parser.get('mangadex', 'username')
@@ -318,11 +319,30 @@ def run() -> None:
     mangaupdates_username = parser.get('mangaupdates', 'username')
     mangaupdates_password = parser.get('mangaupdates', 'password')
     mangaupdates_credentials = MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
+    export_to_csv = _get_switch('Do you want to export to CSV? [y/n] ')
+    export_to_mangaupdates = _get_switch('Do you want to export to MangaUpdates? [y/n] ')
     with MangaDexClient(mangadex_credentials) as mangadex:
-        with MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', 'mangaupdates-errors.txt') as exporter:
-            mangas = list(mangadex.get_follows())
+        mangas = list(mangadex.get_follows())
+    if export_to_csv:
+        timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+        path = f'follows_{timestamp}.csv'
+        with CsvExporter(path) as exporter:
             exporter.export(mangas)
-    print('Export completed.')
+    if export_to_mangaupdates:
+        with MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', 'mangaupdates-errors.txt') as exporter:
+            exporter.export(mangas)
+    print('Process completed.')
+
+
+def _get_switch(prompt: str) -> bool:
+    while True:
+        value = input(prompt).strip().lower()
+        if value == 'y':
+            return True
+        elif value == 'n':
+            return False
+        else:
+            print('Invalid input.')
 
 
 if __name__ == '__main__':
