@@ -286,6 +286,9 @@ class MangaUpdatesExporter(Exporter):
                         errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, it does not exist in MangaUpdates. Check ' + manga.url + '\n')
                         errors.flush()
                         continue
+                    elif reason == 'That series is already on one of your lists.':
+                        print('"' + manga.title + '" is already tracked?')
+                        continue
                     else:
                         raise _get_error(response)
                 elif response.status_code != 200:
