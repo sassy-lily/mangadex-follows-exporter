@@ -5,6 +5,7 @@ import traceback
 import csv_exporter
 import excel_exporter
 import mangadex_client
+import mangaupdates_client
 import mangaupdates_exporter
 
 
@@ -19,7 +20,7 @@ def run() -> None:
     mangadex_credentials = mangadex_client.MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
     mangaupdates_username = parser.get('mangaupdates', 'username')
     mangaupdates_password = parser.get('mangaupdates', 'password')
-    mangaupdates_credentials = mangaupdates_exporter.MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
+    mangaupdates_credentials = mangaupdates_client.MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
     export_to_csv = _get_switch('Do you want to export to CSV? [y/n] ')
     export_to_excel = _get_switch('Do you want to export to Excel? [y/n] ')
     export_to_mangaupdates = _get_switch('Do you want to export to MangaUpdates? [y/n] ')
