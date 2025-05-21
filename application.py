@@ -4,6 +4,7 @@ import traceback
 
 import clients.mangadex
 import clients.mangaupdates
+import common
 import exporters.csv_file
 import exporters.excel_file
 import exporters.mangaupdates
@@ -25,17 +26,29 @@ def run() -> None:
     export_to_excel = _get_switch('Do you want to export to Excel? [y/n] ')
     export_to_mangaupdates = _get_switch('Do you want to export to MangaUpdates? [y/n] ')
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    print('Exporting entries from MangaDex.')
     with clients.mangadex.MangaDexClient(mangadex_credentials) as mangadex:
-        mangas = list(mangadex.get_follows())
+        statuses = mangadex.get_statuses()
+        mangas = list[common.Manga]()
+        count = 0
+        total_count = len(statuses)
+        for status in statuses:
+            manga = mangadex.get_manga(status)
+            mangas.append(manga)
+            count += 1
+            print(f'Fetched {count} of {total_count}: {manga.title}')
     if export_to_csv:
+        print('Saving entries to CSV.')
         output_path = f'follows_{timestamp}.csv'
         with exporters.csv_file.CsvFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_excel:
+        print('Saving entries to Excel.')
         output_path = f'follows_{timestamp}.xlsx'
         with exporters.excel_file.ExcelFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_mangaupdates:
+        print('Saving entries to MangaUpdates.')
         errors_path = f'mangaupdates-errors_{timestamp}.txt'
         with exporters.mangaupdates.MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', errors_path) as exporter:
             exporter.export(mangas)

@@ -36,7 +36,6 @@ class MangaDexClient(contextlib.AbstractContextManager):
     def _authorize(self: typing.Self) -> None:
         if self._authentication_expires_at is not None and self._authentication_expires_at > time.time():
             return
-        print('Authenticating in MangaDex.')
         request_data = {
             'grant_type': 'password',
             'username': self._credentials.user,
@@ -68,7 +67,10 @@ class MangaDexClient(contextlib.AbstractContextManager):
         for key, value in data['data']['attributes']['links'].items():
             yield common.ExternalLink(key, value)
 
-    def _get_manga(self: typing.Self, status: common.Status) -> common.Manga:
+    def close(self: typing.Self) -> None:
+        self._session.close()
+
+    def get_manga(self: typing.Self, status: common.Status) -> common.Manga:
         self._authorize()
         response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
         if response.status_code != 200:
@@ -83,24 +85,18 @@ class MangaDexClient(contextlib.AbstractContextManager):
         alternative_titles = list(self._get_alternative_titles(data))
         external_links = list(self._get_external_links(data))
         url = 'https://mangadex.org/title/' + data['data']['id']
-        print('Fetched entry "' + title + '".')
         return common.Manga(id, type, title_language, title, status.status, alternative_titles, external_links, url)
 
-    def _get_statuses(self: typing.Self) -> collections.abc.Generator[common.Status]:
+    def get_statuses(self: typing.Self) -> list[common.Status]:
         self._authorize()
-        print('Fetching statuses list.')
         response = self._session.get('https://api.mangadex.org/manga/status')
         if response.status_code != 200:
             raise common.get_error(response)
         data = response.json()
         if data['result'] != 'ok':
             raise common.get_error(response)
-        for id, status in data['statuses'].items():
-            yield common.Status(id, status)
-
-    def close(self: typing.Self) -> None:
-        self._session.close()
-
-    def get_follows(self: typing.Self) -> collections.abc.Generator[common.Manga]:
-        for status in list(self._get_statuses()):
-            yield self._get_manga(status)
+        statuses = list[common.Status]()
+        for key, value in data['statuses'].items():
+            status = common.Status(key, value)
+            statuses.append(status)
+        return statuses
