@@ -46,7 +46,7 @@ class MangaDexClient(contextlib.AbstractContextManager):
         }
         response = self._session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', request_data)
         if response.status_code != 200:
-            raise common._get_error(response)
+            raise common.get_error(response)
         response_data = response.json()
         access_token = response_data['access_token']
         expires_in = response_data['expires_in']
@@ -72,10 +72,10 @@ class MangaDexClient(contextlib.AbstractContextManager):
         self._authorize()
         response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
         if response.status_code != 200:
-            raise common._get_error(response)
+            raise common.get_error(response)
         data = response.json()
         if data['result'] != 'ok':
-            raise common._get_error(response)
+            raise common.get_error(response)
         id = data['data']['id']
         type = data['data']['type']
         title_language = next(iter(data['data']['attributes']['title']))
@@ -91,10 +91,10 @@ class MangaDexClient(contextlib.AbstractContextManager):
         print('Fetching statuses list.')
         response = self._session.get('https://api.mangadex.org/manga/status')
         if response.status_code != 200:
-            raise common._get_error(response)
+            raise common.get_error(response)
         data = response.json()
         if data['result'] != 'ok':
-            raise common._get_error(response)
+            raise common.get_error(response)
         for id, status in data['statuses'].items():
             yield common.Status(id, status)
 

@@ -47,10 +47,10 @@ class MangaUpdatesClient(contextlib.AbstractContextManager):
         }
         response = self._session.put('https://api.mangaupdates.com/v1/account/login', json=request_data)
         if response.status_code != 200:
-            raise common._get_error(response)
+            raise common.get_error(response)
         response_data = response.json()
         if response_data['status'] != 'success':
-            raise common._get_error(response)
+            raise common.get_error(response)
         self._session.headers['Authorization'] = 'Bearer ' + response_data['context']['session_token']
         self.is_authenticated = True
 
@@ -76,9 +76,9 @@ class MangaUpdatesClient(contextlib.AbstractContextManager):
             elif error == 'That series is already on one of your lists.':
                 return MangaUpdatesOutcomes.ALREADY_TRACKED
             else:
-                raise common._get_error(response)
+                raise common.get_error(response)
         else:
-            raise common._get_error(response)
+            raise common.get_error(response)
 
     def get_list_entries(self: typing.Self) -> collections.abc.Iterable[int]:
         self._authenticate()
@@ -93,7 +93,7 @@ class MangaUpdatesClient(contextlib.AbstractContextManager):
             }
             response = self._session.post('https://api.mangaupdates.com/v1/lists/0/search', json=request_data)
             if response.status_code != 200:
-                raise common._get_error(response)
+                raise common.get_error(response)
             response_data = response.json()
             if len(response_data['results']) == 0:
                 return

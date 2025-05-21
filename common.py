@@ -29,7 +29,7 @@ class Manga(typing.NamedTuple):
     url: str
 
 
-def _get_error(response: requests.Response) -> RuntimeError:
+def get_error(response: requests.Response) -> RuntimeError:
     error = RuntimeError('Request failed.')
     error.add_note(f'URL: {response.request.url}')
     error.add_note(f'Status: {response.status_code}')
