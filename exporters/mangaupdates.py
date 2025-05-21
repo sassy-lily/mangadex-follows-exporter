@@ -5,14 +5,14 @@ import typing
 
 import requests
 
+import base
+import clients.mangaupdates
 import common
-import exporter
-import mangaupdates_client
 
 
-class MangaUpdatesExporter(exporter.Exporter):
+class MangaUpdatesExporter(base.BaseExporter):
 
-    _credentials: mangaupdates_client.MangaUpdatesCredentials
+    _credentials: clients.mangaupdates.MangaUpdatesCredentials
     _errors_path: str
     _mappings: dict[str, str]
     _mappings_path: str
@@ -27,7 +27,7 @@ class MangaUpdatesExporter(exporter.Exporter):
     def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
         self.close()
 
-    def __init__(self: typing.Self, credentials: mangaupdates_client.MangaUpdatesCredentials, mappings_path: str, errors_path: str) -> None:
+    def __init__(self: typing.Self, credentials: clients.mangaupdates.MangaUpdatesCredentials, mappings_path: str, errors_path: str) -> None:
         self._credentials = credentials
         self._errors_path = errors_path
         self._mappings_path = mappings_path
@@ -46,7 +46,7 @@ class MangaUpdatesExporter(exporter.Exporter):
     def export(self: typing.Self, mangas: collections.abc.Iterable[common.Manga]) -> None:
         print('Exporting to MangaUpdates.')
         with open(self._errors_path, 'wt', encoding='utf-8') as errors:
-            with mangaupdates_client.MangaUpdatesClient(self._credentials) as client:
+            with clients.mangaupdates.MangaUpdatesClient(self._credentials) as client:
                 already_tracked_entries = set(client.get_list_entries())
                 for manga in mangas:
                     id = self._get_id(manga)
@@ -59,14 +59,14 @@ class MangaUpdatesExporter(exporter.Exporter):
                         print('"' + manga.title + '" is already tracked.')
                         continue
                     outcome = client.add_entry_to_list(id)
-                    if outcome == mangaupdates_client.MangaUpdatesOutcomes.SUCCESS:
+                    if outcome == clients.mangaupdates.MangaUpdatesOutcomes.SUCCESS:
                         already_tracked_entries.add(id)
                         print('"' + manga.title + '" has been added.')
-                    elif outcome == mangaupdates_client.MangaUpdatesOutcomes.NOT_FOUND:
+                    elif outcome == clients.mangaupdates.MangaUpdatesOutcomes.NOT_FOUND:
                         print('"' + manga.title + '" (' + manga.id + ') has NOT be added, it does not exist in MangaUpdates.')
                         errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, it does not exist in MangaUpdates. Check ' + manga.url + '\n')
                         errors.flush()
-                    elif outcome == mangaupdates_client.MangaUpdatesOutcomes.ALREADY_TRACKED:
+                    elif outcome == clients.mangaupdates.MangaUpdatesOutcomes.ALREADY_TRACKED:
                         print('"' + manga.title + '" is already tracked?')
                     else:
                         error = RuntimeError('Unexpected outcome.')

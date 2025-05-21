@@ -7,7 +7,7 @@ import typing
 import common
 
 
-class Exporter(contextlib.AbstractContextManager):
+class BaseExporter(contextlib.AbstractContextManager):
 
     def __enter__(self: typing.Self) -> typing.Self:
         return self

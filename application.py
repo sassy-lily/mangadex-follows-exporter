@@ -2,11 +2,11 @@ import configparser
 import time
 import traceback
 
-import csv_exporter
-import excel_exporter
-import mangadex_client
-import mangaupdates_client
-import mangaupdates_exporter
+import clients.mangadex
+import clients.mangaupdates
+import exporters.csv_file
+import exporters.excel_file
+import exporters.mangaupdates
 
 
 def run() -> None:
@@ -17,27 +17,27 @@ def run() -> None:
     mangadex_password = parser.get('mangadex', 'password')
     mangadex_client_id = parser.get('mangadex', 'client_id')
     mangadex_client_secret = parser.get('mangadex', 'client_secret')
-    mangadex_credentials = mangadex_client.MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
+    mangadex_credentials = clients.mangadex.MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
     mangaupdates_username = parser.get('mangaupdates', 'username')
     mangaupdates_password = parser.get('mangaupdates', 'password')
-    mangaupdates_credentials = mangaupdates_client.MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
+    mangaupdates_credentials = clients.mangaupdates.MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
     export_to_csv = _get_switch('Do you want to export to CSV? [y/n] ')
     export_to_excel = _get_switch('Do you want to export to Excel? [y/n] ')
     export_to_mangaupdates = _get_switch('Do you want to export to MangaUpdates? [y/n] ')
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
-    with mangadex_client.MangaDexClient(mangadex_credentials) as mangadex:
+    with clients.mangadex.MangaDexClient(mangadex_credentials) as mangadex:
         mangas = list(mangadex.get_follows())
     if export_to_csv:
         output_path = f'follows_{timestamp}.csv'
-        with csv_exporter.CsvExporter(output_path) as exporter:
+        with exporters.csv_file.CsvFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_excel:
         output_path = f'follows_{timestamp}.xlsx'
-        with excel_exporter.ExcelExporter(output_path) as exporter:
+        with exporters.excel_file.ExcelFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_mangaupdates:
         errors_path = f'mangaupdates-errors_{timestamp}.txt'
-        with mangaupdates_exporter.MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', errors_path) as exporter:
+        with exporters.mangaupdates.MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', errors_path) as exporter:
             exporter.export(mangas)
     print('Process completed.')
 

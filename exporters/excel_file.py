@@ -1,12 +1,13 @@
-import openpyxl
 import collections
 import typing
 
-import exporter
+import openpyxl
+
+import base
 import common
 
 
-class ExcelExporter(exporter.Exporter):
+class ExcelFileExporter(base.BaseExporter):
 
     _path: str
 
