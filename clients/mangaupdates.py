@@ -52,7 +52,7 @@ class MangaUpdatesClient(contextlib.AbstractContextManager):
         if response_data['status'] != 'success':
             raise common.get_error(response)
         self._session.headers['Authorization'] = 'Bearer ' + response_data['context']['session_token']
-        self.is_authenticated = True
+        self._is_authenticated = True
 
     def add_entry_to_list(self: typing.Self, id: int) -> MangaUpdatesOutcomes:
         self._authenticate()
