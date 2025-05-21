@@ -1,13 +1,12 @@
-import collections
 import json
 import types
 import typing
 
 import requests
 
-import exporters.base
 import clients.mangaupdates
 import common
+import exporters.base
 
 
 class MangaUpdatesExporter(exporters.base.BaseExporter):
@@ -43,33 +42,33 @@ class MangaUpdatesExporter(exporters.base.BaseExporter):
     def close(self: typing.Self) -> None:
         self._session.close()
 
-    def export(self: typing.Self, mangas: collections.abc.Iterable[common.Manga]) -> None:
-        print('Exporting to MangaUpdates.')
+    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
         with open(self._errors_path, 'wt', encoding='utf-8') as errors:
             with clients.mangaupdates.MangaUpdatesClient(self._credentials) as client:
-                already_tracked_entries = set(client.get_list_entries())
+                count = 0
+                count_total = len(mangas)
+                tracked_entries = set(client.get_list_entries())
                 for manga in mangas:
+                    count += 1
                     id = self._get_id(manga)
                     if id is None:
-                        print('"' + manga.title + '" (' + manga.id + ') has NOT be added, its ID is not available in MangaDex.')
-                        errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, its ID is not available in MangaDex. Check ' + manga.url + '\n')
-                        errors.flush()
+                        print(f'[MangaUpdates] Entry {count} of {count_total} failed: the entry does not have a MangaUpdates ID. "{manga.title}" ({manga.id})')
+                        errors.write(f'The entry does not have a MangaUpdates ID: {manga.title} ({manga.id}).')
                         continue
-                    if id in already_tracked_entries:
-                        print('"' + manga.title + '" is already tracked.')
+                    if id in tracked_entries:
+                        print(f'[MangaUpdates] Entry {count} of {count_total} skipped: the entry is already tracked. "{manga.title}" ({manga.id})')
                         continue
                     outcome = client.add_entry_to_list(id)
                     if outcome == clients.mangaupdates.MangaUpdatesOutcomes.SUCCESS:
-                        already_tracked_entries.add(id)
-                        print('"' + manga.title + '" has been added.')
+                        tracked_entries.add(id)
+                        print(f'[MangaUpdates] Entry {count} of {count_total} added. "{manga.title}" ({manga.id})')
                     elif outcome == clients.mangaupdates.MangaUpdatesOutcomes.NOT_FOUND:
-                        print('"' + manga.title + '" (' + manga.id + ') has NOT be added, it does not exist in MangaUpdates.')
-                        errors.write('"' + manga.title + '" (' + manga.id + ') has not been added, it does not exist in MangaUpdates. Check ' + manga.url + '\n')
-                        errors.flush()
+                        print(f'[MangaUpdates] Entry {count} of {count_total} failed: the entry does not exist in MangaUpdates. "{manga.title}" ({manga.id})')
+                        errors.write(f'The entry does not exist in MangaUpdates: "{manga.title}" ({manga.id}).')
                     elif outcome == clients.mangaupdates.MangaUpdatesOutcomes.ALREADY_TRACKED:
-                        print('"' + manga.title + '" is already tracked?')
+                        print(f'[MangaUpdates] Entry {count} of {count_total} skipped: the entry is already tracked, could this be a duplicate?. "{manga.title}" ({manga.id})')
+                        errors.write(f'The entry is already tracked, is this an error? "{manga.title}" ({manga.id}).')
                     else:
                         error = RuntimeError('Unexpected outcome.')
                         error.add_note(f'Outcome: {outcome}')
                         raise error
-        print('Export completed.')

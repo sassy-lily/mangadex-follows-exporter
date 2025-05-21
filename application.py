@@ -28,15 +28,18 @@ def run() -> None:
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     print('Exporting entries from MangaDex.')
     with clients.mangadex.MangaDexClient(mangadex_credentials) as mangadex:
+        print('Fetching statuses.')
         statuses = mangadex.get_statuses()
         mangas = list[common.Manga]()
         count = 0
-        total_count = len(statuses)
+        count_total = len(statuses)
+        print(f'{count_total} entries founds.')
+        print('Fetching entries.')
         for status in statuses:
+            count += 1
             manga = mangadex.get_manga(status)
             mangas.append(manga)
-            count += 1
-            print(f'Fetched {count} of {total_count}: {manga.title}')
+            print(f'[MangaDex] Fetched {count} of {count_total}: {manga.title}')
     if export_to_csv:
         print('Saving entries to CSV.')
         output_path = f'follows_{timestamp}.csv'

@@ -1,5 +1,4 @@
 import abc
-import collections
 import contextlib
 import types
 import typing
@@ -22,5 +21,5 @@ class BaseExporter(contextlib.AbstractContextManager):
         return ''
 
     @abc.abstractmethod
-    def export(self: typing.Self, mangas: collections.abc.Iterable[common.Manga]) -> None:
+    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
         raise NotImplementedError('This method has not been implemented.')

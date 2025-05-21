@@ -1,11 +1,10 @@
-import collections
 import csv
 import io
 import types
 import typing
 
-import exporters.base
 import common
+import exporters.base
 
 
 class CsvFileExporter(exporters.base.BaseExporter):
@@ -23,7 +22,7 @@ class CsvFileExporter(exporters.base.BaseExporter):
     def __init__(self: typing.Self, name: str):
         self._name = name
 
-    def export(self: typing.Self, mangas: collections.abc.Iterable[common.Manga]) -> None:
+    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
         print('Exporting to CSV.')
         writer = csv.writer(self._file)
         writer.writerow(['ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative Title (EN)', 'Alternative Title (JA)', 'Alternative Title (romaji)', 'URL'])

@@ -1,10 +1,9 @@
-import collections
 import typing
 
 import openpyxl
 
-import exporters.base
 import common
+import exporters.base
 
 
 class ExcelFileExporter(exporters.base.BaseExporter):
@@ -14,7 +13,7 @@ class ExcelFileExporter(exporters.base.BaseExporter):
     def __init__(self: typing.Self, path: str) -> None:
         self._path = path
 
-    def export(self: typing.Self, mangas: collections.abc.Iterable[common.Manga]) -> None:
+    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
         workbook = openpyxl.Workbook()
         worksheet = workbook.active
         worksheet.append(['ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative Title (EN)', 'Alternative Title (JA)', 'Alternative Title (romaji)', 'URL'])
