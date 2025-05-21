@@ -5,12 +5,12 @@ import typing
 
 import requests
 
-import base
+import exporters.base
 import clients.mangaupdates
 import common
 
 
-class MangaUpdatesExporter(base.BaseExporter):
+class MangaUpdatesExporter(exporters.base.BaseExporter):
 
     _credentials: clients.mangaupdates.MangaUpdatesCredentials
     _errors_path: str

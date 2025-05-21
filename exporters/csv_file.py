@@ -4,11 +4,11 @@ import io
 import types
 import typing
 
-import base
+import exporters.base
 import common
 
 
-class CsvFileExporter(base.BaseExporter):
+class CsvFileExporter(exporters.base.BaseExporter):
 
     _file: io.TextIOWrapper
     _name: str

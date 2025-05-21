@@ -3,11 +3,11 @@ import typing
 
 import openpyxl
 
-import base
+import exporters.base
 import common
 
 
-class ExcelFileExporter(base.BaseExporter):
+class ExcelFileExporter(exporters.base.BaseExporter):
 
     _path: str
 
