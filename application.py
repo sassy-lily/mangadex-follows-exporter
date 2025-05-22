@@ -64,7 +64,11 @@ def _get_switch(prompt: str, env_var: str, default: bool = False) -> bool:
     value = os.getenv(env_var)
     if value is not None:
         return value.strip().lower() == 'y'
-    return default
+    # if Env not set: ask user
+    user_input = input(prompt).strip().lower()
+    if user_input == '':
+        return default
+    return user_input == 'y'
 
 if __name__ == '__main__':
     try:
