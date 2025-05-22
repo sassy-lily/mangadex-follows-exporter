@@ -65,10 +65,13 @@ def _get_switch(prompt: str, env_var: str, default: bool = False) -> bool:
     if value is not None:
         return value.strip().lower() == 'y'
     # if Env not set: ask user
-    user_input = input(prompt).strip().lower()
-    if user_input == '':
-        return default
-    return user_input == 'y'
+    value = input(prompt).strip().lower()
+    if value == 'y':
+        return True
+    elif value == 'n':
+        return False
+    else:
+        print('Invalid input.')
 
 if __name__ == '__main__':
     try:
