@@ -30,16 +30,14 @@ jobs:
         cat configuration.ini
 
     - name: Execute application with inputs
-      run: |
-        yes "y" | head -n 2 | python application.py
-        echo "n" | python application.py
+      env:
+        export_to_csv: 'y'
+        export_to_excel: 'y'
+        export_to_mangaupdates: 'n'
+      run: python application.py
 
-    - name: Install tree command
-      run: sudo apt-get update && sudo apt-get install -y tree
-
-    - name: Display file structure
-      run: |
-        echo "=== Current Directory Structure ==="
-        tree -a -I '.venv|.git'
-        echo "\n=== File Details ==="
-        ls -lhR
+    - name: Upload output folder as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: output
+        path: output/
