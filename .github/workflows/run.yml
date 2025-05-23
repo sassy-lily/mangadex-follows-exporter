@@ -13,11 +13,6 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Create virtual environment
-      run: |
-        python -m venv .venv
-        source .venv/bin/activate
-
     - name: Install dependencies
       run: python -m pip install -r requirements.txt
 
@@ -30,11 +25,9 @@ jobs:
         cat configuration.ini
 
     - name: Execute application with inputs
-      env:
-        export_to_csv: 'y'
-        export_to_excel: 'y'
-        export_to_mangaupdates: 'n'
-      run: python application.py
+      run: |
+        # set input in order: CSV (y/n), Excel (y/n), MangaUpdates (y/n), then exit (blank)
+        (echo "y"; echo "y"; echo "n"; echo "") | python application.py
 
     - name: Upload output folder as artifact
       uses: actions/upload-artifact@v4
