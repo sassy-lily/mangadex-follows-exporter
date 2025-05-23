@@ -9,6 +9,7 @@ import exporters.csv_file
 import exporters.excel_file
 import exporters.mangaupdates
 
+import os
 
 def run() -> None:
     print('Starting process.')
@@ -26,6 +27,7 @@ def run() -> None:
     export_to_excel = _get_switch('Do you want to export to Excel? [y/n] ')
     export_to_mangaupdates = _get_switch('Do you want to export to MangaUpdates? [y/n] ')
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
+    print(f"export_to_csv: {export_to_csv}, export_to_excel: {export_to_excel}, export_to_mangaupdates: {export_to_mangaupdates}")
     print('Exporting entries from MangaDex.')
     with clients.mangadex.MangaDexClient(mangadex_credentials) as mangadex:
         print('Fetching statuses.')
@@ -40,23 +42,23 @@ def run() -> None:
             manga = mangadex.get_manga(status)
             mangas.append(manga)
             print(f'[MangaDex] Fetched {count} of {count_total}: {manga.title}')
+    os.makedirs('output', exist_ok=True)
     if export_to_csv:
         print('Saving entries to CSV.')
-        output_path = f'follows_{timestamp}.csv'
+        output_path = f'output/follows_{timestamp}.csv'
         with exporters.csv_file.CsvFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_excel:
         print('Saving entries to Excel.')
-        output_path = f'follows_{timestamp}.xlsx'
+        output_path = f'output/follows_{timestamp}.xlsx'
         with exporters.excel_file.ExcelFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_mangaupdates:
         print('Saving entries to MangaUpdates.')
-        errors_path = f'mangaupdates-errors_{timestamp}.txt'
+        errors_path = f'output/mangaupdates-errors_{timestamp}.txt'
         with exporters.mangaupdates.MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', errors_path) as exporter:
             exporter.export(mangas)
     print('Process completed.')
-
 
 def _get_switch(prompt: str) -> bool:
     while True:
@@ -67,7 +69,6 @@ def _get_switch(prompt: str) -> bool:
             return False
         else:
             print('Invalid input.')
-
 
 if __name__ == '__main__':
     try:
