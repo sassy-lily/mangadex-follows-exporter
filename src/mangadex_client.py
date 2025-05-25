@@ -72,6 +72,7 @@ class MangaDexClient(contextlib.AbstractContextManager):
 
     def get_manga(self: typing.Self, status: common.Status) -> common.Manga:
         self._authorize()
+        time.sleep(0.5)
         response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
         if response.status_code != 200:
             raise common.get_error(response)
@@ -89,6 +90,7 @@ class MangaDexClient(contextlib.AbstractContextManager):
 
     def get_statuses(self: typing.Self) -> list[common.Status]:
         self._authorize()
+        time.sleep(0.5)
         response = self._session.get('https://api.mangadex.org/manga/status')
         if response.status_code != 200:
             raise common.get_error(response)
