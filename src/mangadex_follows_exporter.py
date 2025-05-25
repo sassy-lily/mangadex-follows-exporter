@@ -2,15 +2,15 @@ import configparser
 import time
 import traceback
 
-import clients.mangadex
-import clients.mangaupdates
 import common
-import exporters.csv_file
-import exporters.excel_file
-import exporters.mangaupdates
+import csv_exporter
+import excel_exporter
+import mangadex_client
+import mangaupdates_client
+import mangaupdates_exporter
 
 
-def run() -> None:
+def export() -> None:
     print('Starting process.')
     parser = configparser.ConfigParser(interpolation=None)
     parser.read('configuration.ini', 'utf-8')
@@ -18,16 +18,16 @@ def run() -> None:
     mangadex_password = parser.get('mangadex', 'password')
     mangadex_client_id = parser.get('mangadex', 'client_id')
     mangadex_client_secret = parser.get('mangadex', 'client_secret')
-    mangadex_credentials = clients.mangadex.MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
+    mangadex_credentials = mangadex_client.MangaDexCredentials(mangadex_username, mangadex_password, mangadex_client_id, mangadex_client_secret)
     mangaupdates_username = parser.get('mangaupdates', 'username')
     mangaupdates_password = parser.get('mangaupdates', 'password')
-    mangaupdates_credentials = clients.mangaupdates.MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
+    mangaupdates_credentials = mangaupdates_client.MangaUpdatesCredentials(mangaupdates_username, mangaupdates_password)
     export_to_csv = _get_switch('Do you want to export to CSV? [y/n] ')
     export_to_excel = _get_switch('Do you want to export to Excel? [y/n] ')
     export_to_mangaupdates = _get_switch('Do you want to export to MangaUpdates? [y/n] ')
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     print('Exporting entries from MangaDex.')
-    with clients.mangadex.MangaDexClient(mangadex_credentials) as mangadex:
+    with mangadex_client.MangaDexClient(mangadex_credentials) as mangadex:
         print('Fetching statuses.')
         statuses = mangadex.get_statuses()
         mangas = list[common.Manga]()
@@ -43,17 +43,17 @@ def run() -> None:
     if export_to_csv:
         print('Saving entries to CSV.')
         output_path = f'follows_{timestamp}.csv'
-        with exporters.csv_file.CsvFileExporter(output_path) as exporter:
+        with csv_exporter.CsvFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_excel:
         print('Saving entries to Excel.')
         output_path = f'follows_{timestamp}.xlsx'
-        with exporters.excel_file.ExcelFileExporter(output_path) as exporter:
+        with excel_exporter.ExcelFileExporter(output_path) as exporter:
             exporter.export(mangas)
     if export_to_mangaupdates:
         print('Saving entries to MangaUpdates.')
         errors_path = f'mangaupdates-errors_{timestamp}.txt'
-        with exporters.mangaupdates.MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', errors_path) as exporter:
+        with mangaupdates_exporter.MangaUpdatesExporter(mangaupdates_credentials, 'mangaupdates.json', errors_path) as exporter:
             exporter.export(mangas)
     print('Process completed.')
 
@@ -68,10 +68,9 @@ def _get_switch(prompt: str) -> bool:
         else:
             print('Invalid input.')
 
-
-if __name__ == '__main__':
+def _main() -> None:
     try:
-        run()
+        export()
     except KeyboardInterrupt:
         print('The script execution has been interrupted.')
     except Exception:
@@ -79,3 +78,7 @@ if __name__ == '__main__':
         print('An error occurred executing the script.')
         print(details)
     input('Press [enter] to exit.')
+
+
+if __name__ == '__main__':
+    _main()

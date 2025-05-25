@@ -63,7 +63,7 @@ If in step 8 the dot is not green, either try waiting a couple of minutes more a
 
 You can either download and run a prebuilt binary (only for Microsoft Windows) or run the script yourself.
 
-The prebuilt binary is more user friendly and does not require you to install or fiddle with anything, but you have to trust me since you will not see what the application does.
+The prebuilt binary is more user-friendly and does not require you to install or fiddle with anything, but you have to trust me since you will not see what the application does.
 
 The script requires you to have a working Python environment and to know your way around a command line, but you can see everything the script is doing.
 
@@ -80,7 +80,7 @@ The script requires you to have a working Python environment and to know your wa
    * The entries in the `mangadex` section are mandatory.
    * The entries in the `mangaupdates` section are required only if you want to use the MangaUpdates exporter.
 6. Save and close the `configuration.ini` file.
-7. Run the file `application.exe`.
+7. Run the file `mangadex_follows_exporter.exe`.
 8. Answer to the questions asking you which exporters you want to use.
    * Answer `y` (yes) to enable the exporter.
    * Answer `n` (no) to *not* enable the exporter.
@@ -88,7 +88,7 @@ The script requires you to have a working Python environment and to know your wa
 9. Wait for the process to complete.
 10. If you don't plan to use the application again delete the MangaDex API Client you created earlier. 
 
-If you enabled the CSV or Excel exporters you will find the generated files alongside the `application.exe` file.
+If you enabled the CSV or Excel exporters you will find the generated files alongside the `mangadex_follows_exporter.exe` file.
 
 ---
 
@@ -98,10 +98,10 @@ The code requires a working Python environment, I'm using Python 3.13.
 
 1. Check out or download the project somewhere.
 2. Create a virtual environment (e.g. `python -m venv .venv`).
-3. Activate the virtual environment (e.g. `".venv/scripts/activate.bat"`).
+3. Activate the virtual environment (e.g. `".venv\scripts\activate.bat"`).
 4. Restore the libraries (e.g. `python -m pip install -r requirements.txt`).
 5. Configure the values in the `configuration.ini` file.
-6. Run the application (e.g. `python application.py`).
+6. Run the application (e.g. `python src\mangadex_follows_exporter.py`).
 
 ---
 

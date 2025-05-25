@@ -1,6 +1,6 @@
 .idea
 .venv
-__pycache__
-application.spec
 build
 dist
+mangadex_follows_exporter.spec
+src/__pycache__

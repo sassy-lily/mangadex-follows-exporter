@@ -2,11 +2,11 @@ import typing
 
 import openpyxl
 
+import base_exporter
 import common
-import exporters.base
 
 
-class ExcelFileExporter(exporters.base.BaseExporter):
+class ExcelFileExporter(base_exporter.BaseExporter):
 
     _path: str
 
