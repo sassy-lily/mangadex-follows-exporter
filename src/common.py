@@ -1,7 +1,5 @@
 import typing
 
-import requests
-
 
 class Status(typing.NamedTuple):
     id: str
@@ -27,11 +25,3 @@ class Manga(typing.NamedTuple):
     alternative_titles: list[AlternativeTitle]
     external_links: list[ExternalLink]
     url: str
-
-
-def get_error(response: requests.Response) -> RuntimeError:
-    error = RuntimeError('Request failed.')
-    error.add_note(f'URL: {response.request.url}')
-    error.add_note(f'Status: {response.status_code}')
-    error.add_note(f'Content: {response.content}')
-    return error

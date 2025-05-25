@@ -1,26 +1,26 @@
-import typing
+from configparser import ConfigParser
+from os import getcwd
+from os.path import join
+from typing import Self
 
-import openpyxl
+from openpyxl import Workbook
 
-import base_exporter
-import common
+from common import Manga
+from file_exporter import FileExporter
 
 
-class ExcelFileExporter(base_exporter.BaseExporter):
+class ExcelFileExporter(FileExporter):
 
-    _path: str
+    def __init__(self: Self) -> None:
+        super().__init__('Excel')
 
-    def __init__(self: typing.Self, path: str) -> None:
-        self._path = path
-
-    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
-        workbook = openpyxl.Workbook()
-        worksheet = workbook.active
-        worksheet.append(['ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative Title (EN)', 'Alternative Title (JA)', 'Alternative Title (romaji)', 'URL'])
+    def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
+        cwd = getcwd()
+        output_path = join(cwd, f'follows_{timestamp}.xlsx')
+        print(f'Writing to {output_path}.')
+        workbook = Workbook()
+        workbook.active.append(list(self._get_headers()))
         for manga in mangas:
-            alt_title_en = self._get_alternative_title(manga, 'en')
-            alt_title_ja_ro = self._get_alternative_title(manga, 'ja')
-            alt_title_ja = self._get_alternative_title(manga, 'ja-RO')
-            worksheet.append([manga.id, manga.type, manga.status, manga.title_language, manga.title, alt_title_en, alt_title_ja_ro, alt_title_ja, manga.url])
-        workbook.save(self._path)
+            workbook.active.append(list(self._get_fields(manga)))
+        workbook.save(output_path)
         workbook.close()

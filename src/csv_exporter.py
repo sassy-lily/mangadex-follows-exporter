@@ -1,34 +1,24 @@
-import csv
-import io
-import types
-import typing
+from configparser import ConfigParser
+from csv import writer
+from os import getcwd
+from os.path import join
+from typing import Self
 
-import base_exporter
-import common
+from common import Manga
+from file_exporter import FileExporter
 
 
-class CsvFileExporter(base_exporter.BaseExporter):
+class CsvFileExporter(FileExporter):
 
-    _file: io.TextIOWrapper
-    _name: str
+    def __init__(self: Self) -> None:
+        super().__init__('CSV')
 
-    def __enter__(self: typing.Self) -> typing.Self:
-        self._file = open(self._name, 'wt', encoding='utf-8', newline='')
-        return self
-
-    def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
-        self._file.close()
-
-    def __init__(self: typing.Self, name: str):
-        self._name = name
-
-    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
-        print('Exporting to CSV.')
-        writer = csv.writer(self._file)
-        writer.writerow(['ID', 'Type', 'Status', 'Main Title Language', 'Main Title', 'Alternative Title (EN)', 'Alternative Title (JA)', 'Alternative Title (romaji)', 'URL'])
-        for manga in mangas:
-            alt_title_en = self._get_alternative_title(manga, 'en')
-            alt_title_ja_ro = self._get_alternative_title(manga, 'ja')
-            alt_title_ja = self._get_alternative_title(manga, 'ja-RO')
-            writer.writerow([manga.id, manga.type, manga.status, manga.title_language, manga.title, alt_title_en, alt_title_ja_ro, alt_title_ja, manga.url])
-        print('Export completed.')
+    def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
+        cwd = getcwd()
+        output_path = join(cwd, f'follows_{timestamp}.csv')
+        print(f'Writing to {output_path}.')
+        with open(output_path, 'wt', encoding='utf-8', newline='') as output_file:
+            output_writer = writer(output_file)
+            output_writer.writerow(self._get_headers())
+            for manga in mangas:
+                output_writer.writerow(self._get_fields(manga))

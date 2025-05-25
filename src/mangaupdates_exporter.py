@@ -1,72 +1,62 @@
-import json
-import types
-import typing
+from configparser import ConfigParser
+from json import load
+from os import getcwd
+from os.path import join
+from typing import Self
 
-import requests
-
-import common
-import base_exporter
-import mangaupdates_client
+from base_exporter import BaseExporter
+from common import Manga
+from mangaupdates_client import MangaUpdatesClient, MangaUpdatesOutcomes
 
 
-class MangaUpdatesExporter(base_exporter.BaseExporter):
+class MangaUpdatesExporter(BaseExporter):
 
-    _credentials: mangaupdates_client.MangaUpdatesCredentials
-    _errors_path: str
-    _mappings: dict[str, str]
-    _mappings_path: str
-    _session: requests.Session
+    def __init__(self: Self) -> None:
+        super().__init__('MangaUpdates')
 
-    def __enter__(self: typing.Self) -> typing.Self:
-        with open(self._mappings_path, 'rt', encoding='utf-8') as file:
-            self._mappings = json.load(file)
-        self._session = requests.Session()
-        return self
-
-    def __exit__(self: typing.Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> bool | None:
-        self.close()
-
-    def __init__(self: typing.Self, credentials: mangaupdates_client.MangaUpdatesCredentials, mappings_path: str, errors_path: str) -> None:
-        self._credentials = credentials
-        self._errors_path = errors_path
-        self._mappings_path = mappings_path
-
-    def _get_id(self: typing.Self, manga: common.Manga) -> int | None:
+    @staticmethod
+    def _get_entry_id(mappings: dict[str, str], manga: Manga) -> int | None:
         for external_link in manga.external_links:
             if external_link.key == 'mu':
-                if external_link.value in self._mappings:
-                    return int(self._mappings[external_link.value], 36)
+                if external_link.value in mappings:
+                    return int(mappings[external_link.value], 36)
                 return int(external_link.value, 36)
         return None
 
-    def close(self: typing.Self) -> None:
-        self._session.close()
+    @staticmethod
+    def _get_old_ids_mappings() -> dict[str, str]:
+        with open('mangaupdates.json', 'rt', encoding='utf-8') as file:
+            return load(file)
 
-    def export(self: typing.Self, mangas: list[common.Manga]) -> None:
-        with open(self._errors_path, 'wt', encoding='utf-8') as errors:
-            with mangaupdates_client.MangaUpdatesClient(self._credentials) as client:
+    def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
+        mappings = self._get_old_ids_mappings()
+        cwd = getcwd()
+        errors_path = join(cwd, f'mangaupdates-errors_{timestamp}.txt')
+        with open(errors_path, 'wt', encoding='utf-8') as errors:
+            with MangaUpdatesClient(config) as client:
                 count = 0
-                count_total = len(mangas)
+                total = len(mangas)
+                print('[MangaUpdates] Retrieving already tracked entries.')
                 tracked_entries = set(client.get_list_entries())
                 for manga in mangas:
                     count += 1
-                    id = self._get_id(manga)
-                    if id is None:
-                        print(f'[MangaUpdates] Entry {count} of {count_total} failed: the entry does not have a MangaUpdates ID. "{manga.title}" ({manga.id})')
+                    entry_id = self._get_entry_id(mappings, manga)
+                    if entry_id is None:
+                        print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not have a MangaUpdates ID. "{manga.title}" ({manga.id})')
                         errors.write(f'The entry does not have a MangaUpdates ID: {manga.title} ({manga.id}).')
                         continue
-                    if id in tracked_entries:
-                        print(f'[MangaUpdates] Entry {count} of {count_total} skipped: the entry is already tracked. "{manga.title}" ({manga.id})')
+                    if entry_id in tracked_entries:
+                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked. "{manga.title}" ({manga.id})')
                         continue
-                    outcome = client.add_entry_to_list(id)
-                    if outcome == mangaupdates_client.MangaUpdatesOutcomes.SUCCESS:
-                        tracked_entries.add(id)
-                        print(f'[MangaUpdates] Entry {count} of {count_total} added. "{manga.title}" ({manga.id})')
-                    elif outcome == mangaupdates_client.MangaUpdatesOutcomes.NOT_FOUND:
-                        print(f'[MangaUpdates] Entry {count} of {count_total} failed: the entry does not exist in MangaUpdates. "{manga.title}" ({manga.id})')
+                    outcome = client.add_entry_to_list(entry_id)
+                    if outcome == MangaUpdatesOutcomes.SUCCESS:
+                        tracked_entries.add(entry_id)
+                        print(f'[MangaUpdates] Entry {count} of {total} added. "{manga.title}" ({manga.id})')
+                    elif outcome == MangaUpdatesOutcomes.NOT_FOUND:
+                        print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not exist in MangaUpdates. "{manga.title}" ({manga.id})')
                         errors.write(f'The entry does not exist in MangaUpdates: "{manga.title}" ({manga.id}).')
-                    elif outcome == mangaupdates_client.MangaUpdatesOutcomes.ALREADY_TRACKED:
-                        print(f'[MangaUpdates] Entry {count} of {count_total} skipped: the entry is already tracked, could this be a duplicate?. "{manga.title}" ({manga.id})')
+                    elif outcome == MangaUpdatesOutcomes.ALREADY_TRACKED:
+                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked, could this be a duplicate?. "{manga.title}" ({manga.id})')
                         errors.write(f'The entry is already tracked, is this an error? "{manga.title}" ({manga.id}).')
                     else:
                         error = RuntimeError('Unexpected outcome.')
