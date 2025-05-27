@@ -5,18 +5,18 @@ on:
       csv:
         description: 'Generate CSV output?'
         required: true
-        type: choice
-        options: ['yes', 'no']
+        type: boolean
+        default: true
       excel:
         description: 'Generate Excel output?'
         required: true
-        type: choice
-        options: ['yes', 'no']
+        type: boolean
+        default: true
       mangaupdates:
         description: 'Export to MangaUpdates?'
         required: true
-        type: choice
-        options: ['no', 'yes']
+        type: boolean
+        default: false
 
 jobs:
   execute-application:
@@ -38,18 +38,17 @@ jobs:
         APP_CONFIG: ${{ secrets.CONFIGURATION }}
       run: |
         echo "$APP_CONFIG" > configuration.ini
-        echo "Generated configuration:"
-        cat configuration.ini
+        echo "Configuration imported"
 
     - name: Execute application with inputs
       run: |
         # Create output directory 
         mkdir -p output
-        # Set input in order: CSV, Excel, MangaUpdates, then exit (blank)
-        (echo "${{ github.event.inputs.csv }}" | cut -c1; \
-         echo "${{ github.event.inputs.excel }}" | cut -c1; \
-         echo "${{ github.event.inputs.mangaupdates }}" | cut -c1; \
-         echo "") | python src/mangadex_follows_exporter.py
+        # Set inputs, then exit (blank)
+        ( [ "${{ github.event.inputs.csv }}" = 'true' ] && echo 'y' || echo 'n';
+          [ "${{ github.event.inputs.excel }}" = 'true' ] && echo 'y' || echo 'n';
+          [ "${{ github.event.inputs.mangaupdates }}" = 'true' ] && echo 'y' || echo 'n';
+          echo "") | python src/mangadex_follows_exporter.py
         # Move files to output directory (if exist)
         mv follows_*.xlsx output/ || true
         mv follows_*.csv output/ || true
