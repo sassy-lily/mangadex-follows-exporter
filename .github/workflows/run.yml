@@ -1,5 +1,22 @@
 name: Run This
-on: [workflow_dispatch]
+on: 
+  workflow_dispatch:
+    inputs:
+      csv:
+        description: 'Generate CSV output?'
+        required: true
+        type: choice
+        options: ['yes', 'no']
+      excel:
+        description: 'Generate Excel output?'
+        required: true
+        type: choice
+        options: ['yes', 'no']
+      mangaupdates:
+        description: 'Export to MangaUpdates?'
+        required: true
+        type: choice
+        options: ['no', 'yes']
 
 jobs:
   execute-application:
@@ -28,8 +45,11 @@ jobs:
       run: |
         # Create output directory 
         mkdir -p output
-        # set input in order: CSV (y/n), Excel (y/n), MangaUpdates (y/n), then exit (blank)
-        (echo "y"; echo "y"; echo "n"; echo "") | python src/mangadex_follows_exporter.py
+        # Set input in order: CSV, Excel, MangaUpdates, then exit (blank)
+        (echo "${{ github.event.inputs.csv }}" | cut -c1; \
+         echo "${{ github.event.inputs.excel }}" | cut -c1; \
+         echo "${{ github.event.inputs.mangaupdates }}" | cut -c1; \
+         echo "") | python src/mangadex_follows_exporter.py
         # Move files to output directory (if exist)
         mv follows_*.xlsx output/ || true
         mv follows_*.csv output/ || true
