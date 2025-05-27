@@ -5,17 +5,17 @@ on:
       csv:
         description: 'Generate CSV output?'
         required: true
-        type: boolean
+        type: choice
         default: true
       excel:
         description: 'Generate Excel output?'
         required: true
-        type: boolean
+        type: choice
         default: true
       mangaupdates:
         description: 'Export to MangaUpdates?'
         required: true
-        type: boolean
+        type: choice
         default: false
 
 jobs:
