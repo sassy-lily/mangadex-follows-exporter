@@ -6,17 +6,17 @@ on:
         description: 'Generate CSV output?'
         required: true
         type: choice
-        default: true
+        options: ['true', 'false']
       excel:
         description: 'Generate Excel output?'
         required: true
         type: choice
-        default: true
+        options: ['true', 'false']
       mangaupdates:
         description: 'Export to MangaUpdates?'
         required: true
         type: choice
-        default: false
+        options: ['false', 'true']
 
 jobs:
   execute-application:
