@@ -71,8 +71,9 @@ The script requires you to have a working Python environment and to know your wa
 
 ## How to run on cloud using github action
 
-**Repository Setup**
-1. On GitHub page:  
+**Repository Setup** 
+
+On GitHub page:  
    - Click **"Use this template"** (top-right)  
    - Select **"Create a new repository"**  
    - Check owner (you) and set **Repository name**  
