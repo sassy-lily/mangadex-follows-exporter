@@ -69,6 +69,53 @@ The script requires you to have a working Python environment and to know your wa
 
 ---
 
+## How to run on cloud using github action
+
+**Repository Setup**
+1. On GitHub page:  
+   - Click **"Use this template"** (top-right)  
+   - Select **"Create a new repository"**  
+   - Check owner (you) and set **Repository name**  
+   - Set visibility to **"Private"**  
+   - Click **"Create repository"**
+ 
+**Configure Secrets**
+1. Navigate to:
+   **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Create secret named `CONFIGURATION` (template from configuration.ini):
+   ```ini
+   [mangadex]
+   username = YOUR_MANGADEX_USERNAME
+   password = YOUR_MANGADEX_PASSWORD
+   client_id = YOUR_CLIENT_ID
+   client_secret = YOUR_CLIENT_SECRET
+
+   [mangaupdates]
+   # Optional section, Leave blank if not using
+   username = 
+   password = 
+   ```
+
+**Execute Workflow**
+1. Go to **Actions** tab
+2. Select **"Run This"** workflow from left sidebar
+3. Click **"Run workflow"** 
+4. Configure inputs:
+   - **Generate CSV?** `true` or `false` (Default: true)
+   - **Generate Excel?** `true` or `false` (Default: true)
+   - **Export to MangaUpdates?** `true` or `false` (Default: false)
+5. Click green **"Run workflow"** button
+
+**Download Artifacts**
+1. After workflow completes (green checkmark):
+   - Click the workflow run in list
+   - Scroll to **"Artifacts"** section
+2. Download:
+   - Click **"output"** artifact to download ZIP
+3. Extract ZIP to see your export
+---
+
 ## How to use the prebuilt binary
 
 1. From the [latest release] download the `MangaDexFollowsExporter.vX.X.X.zip` file.
