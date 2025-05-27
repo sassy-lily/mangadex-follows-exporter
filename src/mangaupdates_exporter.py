@@ -31,7 +31,7 @@ class MangaUpdatesExporter(BaseExporter):
     def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
         mappings = self._get_old_ids_mappings()
         cwd = getcwd()
-        errors_path = join(cwd, f'output/mangaupdates-errors_{timestamp}.txt')
+        errors_path = join(cwd, f'mangaupdates-errors_{timestamp}.txt')
         with open(errors_path, 'wt', encoding='utf-8') as errors:
             with MangaUpdatesClient(config) as client:
                 count = 0

@@ -15,7 +15,7 @@ class CsvFileExporter(FileExporter):
 
     def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
         cwd = getcwd()
-        output_path = join(cwd, f'output/follows_{timestamp}.csv')
+        output_path = join(cwd, f'follows_{timestamp}.csv')
         print(f'Writing to {output_path}.')
         with open(output_path, 'wt', encoding='utf-8', newline='') as output_file:
             output_writer = writer(output_file)

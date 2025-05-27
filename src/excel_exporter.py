@@ -16,7 +16,7 @@ class ExcelFileExporter(FileExporter):
 
     def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
         cwd = getcwd()
-        output_path = join(cwd, f'output/follows_{timestamp}.xlsx')
+        output_path = join(cwd, f'follows_{timestamp}.xlsx')
         print(f'Writing to {output_path}.')
         workbook = Workbook()
         workbook.active.append(list(self._get_headers()))
