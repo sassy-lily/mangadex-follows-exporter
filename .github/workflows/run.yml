@@ -59,3 +59,4 @@ jobs:
       with:
         name: output
         path: output/
+        retention-days: 7
