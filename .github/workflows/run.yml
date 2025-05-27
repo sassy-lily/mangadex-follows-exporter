@@ -44,7 +44,7 @@ jobs:
       run: |
         # Create output directory 
         mkdir -p output
-        # Set inputs, then exit (blank)
+        # Set inputs (case-sensitive), then exit (blank)
         ( [ "${{ github.event.inputs.csv }}" = 'true' ] && echo 'y' || echo 'n';
           [ "${{ github.event.inputs.excel }}" = 'true' ] && echo 'y' || echo 'n';
           [ "${{ github.event.inputs.mangaupdates }}" = 'true' ] && echo 'y' || echo 'n';
