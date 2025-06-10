@@ -1,6 +1,7 @@
-from collections import abc
+from collections.abc import Generator
 from configparser import ConfigParser
-from time import sleep, time
+from contextlib import AbstractContextManager
+from time import time
 from types import TracebackType
 from typing import Any, Self
 
@@ -11,7 +12,7 @@ from common import AlternativeTitle, ExternalLink, Manga, Status
 from throttler import Throttler
 
 
-class MangaDexClient(BaseClient):
+class MangaDexClient(BaseClient, AbstractContextManager):
 
     _THROTTLE_THRESHOLD = 0.5
 
@@ -59,7 +60,7 @@ class MangaDexClient(BaseClient):
         self._session.headers['Authorization'] = token_type + ' ' + access_token
 
     @staticmethod
-    def _get_alternative_titles(data: Any) -> abc.Generator[AlternativeTitle]:
+    def _get_alternative_titles(data: Any) -> Generator[AlternativeTitle]:
         if 'altTitles' not in data['data']['attributes'] or data['data']['attributes']['altTitles'] is None:
             return
         for entry in data['data']['attributes']['altTitles']:
@@ -68,7 +69,7 @@ class MangaDexClient(BaseClient):
             yield AlternativeTitle(language, title)
 
     @staticmethod
-    def _get_external_links(data: Any) -> abc.Generator[ExternalLink]:
+    def _get_external_links(data: Any) -> Generator[ExternalLink]:
         if 'links' not in data['data']['attributes'] or data['data']['attributes']['links'] is None:
             return
         for key, value in data['data']['attributes']['links'].items():
@@ -92,7 +93,7 @@ class MangaDexClient(BaseClient):
         url = 'https://mangadex.org/title/' + data['data']['id']
         return Manga(entry_id, entry_type, title_language, title, status.status, alternative_titles, external_links, url)
 
-    def get_statuses(self: Self) -> list[Status]:
+    def get_statuses(self: Self) -> Generator[Status]:
         self._authorize()
         with Throttler(self._THROTTLE_THRESHOLD):
             response = self._session.get('https://api.mangadex.org/manga/status')
@@ -101,8 +102,5 @@ class MangaDexClient(BaseClient):
         data = response.json()
         if data['result'] != 'ok':
             raise self._get_error(response)
-        statuses = list[Status]()
         for key, value in data['statuses'].items():
-            status = Status(key, value)
-            statuses.append(status)
-        return statuses
+            yield Status(key, value)

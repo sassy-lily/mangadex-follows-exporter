@@ -1,4 +1,5 @@
 from configparser import ConfigParser
+from locale import LC_ALL, setlocale
 from os import getcwd
 from os.path import join
 from time import strftime
@@ -20,14 +21,14 @@ def export() -> None:
     print(f'Loading configuration from "{config_path}".')
     config = ConfigParser(interpolation=None)
     config.read(config_path, 'utf-8')
-    exporters = list[BaseExporter]([CsvFileExporter(), ExcelFileExporter(), MangaUpdatesExporter()])
+    exporters: list[BaseExporter] = [CsvFileExporter(), ExcelFileExporter(), MangaUpdatesExporter()]
     for exporter in exporters:
         exporter.query_activation()
     print('Fetching data from MangaDex.')
     with MangaDexClient(config) as mangadex:
         print('Fetching statuses.')
-        statuses = mangadex.get_statuses()
-        mangas = list[Manga]()
+        statuses = list(mangadex.get_statuses())
+        mangas: list[Manga] = []
         count = 0
         total = len(statuses)
         print('Fetching entries.')
@@ -45,6 +46,7 @@ def export() -> None:
 
 
 def _main() -> None:
+    setlocale(LC_ALL, '')
     try:
         export()
     except KeyboardInterrupt:

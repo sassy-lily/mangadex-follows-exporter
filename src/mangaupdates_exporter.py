@@ -56,7 +56,7 @@ class MangaUpdatesExporter(BaseExporter):
                         print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not exist in MangaUpdates. "{manga.title}" ({manga.id})')
                         errors.write(f'The entry does not exist in MangaUpdates: "{manga.title}" ({manga.id}).')
                     elif outcome == MangaUpdatesOutcomes.ALREADY_TRACKED:
-                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked, could this be a duplicate?. "{manga.title}" ({manga.id})')
+                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked, could this be a duplicate? "{manga.title}" ({manga.id})')
                         errors.write(f'The entry is already tracked, is this an error? "{manga.title}" ({manga.id}).')
                     else:
                         error = RuntimeError('Unexpected outcome.')

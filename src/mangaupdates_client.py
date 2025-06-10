@@ -1,7 +1,8 @@
-from collections import abc
+from collections.abc import Iterable
 from configparser import ConfigParser
+from contextlib import AbstractContextManager
 from enum import Enum
-from time import sleep
+from types import TracebackType
 from typing import Self
 
 from requests import Session
@@ -16,7 +17,7 @@ class MangaUpdatesOutcomes(Enum):
     ALREADY_TRACKED = 3
 
 
-class MangaUpdatesClient(BaseClient):
+class MangaUpdatesClient(BaseClient, AbstractContextManager):
 
     _THROTTLE_THRESHOLD = 1.0
 
@@ -29,7 +30,7 @@ class MangaUpdatesClient(BaseClient):
         self._session = Session()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback, /):
+    def __exit__(self: Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> bool | None:
         self._session.close()
 
     def __init__(self: Self, config: ConfigParser) -> None:
@@ -79,7 +80,7 @@ class MangaUpdatesClient(BaseClient):
             raise self._get_error(response)
         raise self._get_error(response)
 
-    def get_list_entries(self: Self) -> abc.Iterable[int]:
+    def get_list_entries(self: Self) -> Iterable[int]:
         self._authenticate()
         page = 1
         size = 100
