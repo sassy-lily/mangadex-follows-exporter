@@ -14,7 +14,7 @@ from throttler import Throttler
 
 class MangaDexClient(BaseClient, AbstractContextManager):
 
-    _THROTTLE_THRESHOLD = 0.5
+    _THROTTLE_THRESHOLD = 0.2
 
     _authentication_expires_at: float
     _client_id: str
