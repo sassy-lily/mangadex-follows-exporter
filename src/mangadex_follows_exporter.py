@@ -6,7 +6,7 @@ from time import strftime
 from traceback import format_exc
 
 from base_exporter import BaseExporter
-from common import Manga
+from common import Entry
 from csv_exporter import CsvFileExporter
 from excel_exporter import ExcelFileExporter
 from mangadex_client import MangaDexClient
@@ -28,20 +28,24 @@ def export() -> None:
     with MangaDexClient(config) as mangadex:
         print('Fetching statuses.')
         statuses = list(mangadex.get_statuses())
-        mangas: list[Manga] = []
+        entries: list[Entry] = []
         count = 0
         total = len(statuses)
         print('Fetching entries.')
         for status in statuses:
             count += 1
             manga = mangadex.get_manga(status)
-            mangas.append(manga)
+            rating = mangadex.get_rating(manga)
+            personal_rating = mangadex.get_personal_rating(manga)
+            entry = Entry(manga, rating, personal_rating, status.status)
+            entries.append(entry)
             print(f'[MangaDex] Fetched {count} of {total}: {manga.title} ({manga.id})')
     print('Exporting entries.')
     for exporter in exporters:
-        if exporter.is_enabled:
-            print(f'Exporting to {exporter.name}.')
-            exporter.export(config, timestamp, mangas)
+        if not exporter.is_enabled:
+            continue
+        print(f'Exporting to {exporter.name}.')
+        exporter.export(config, timestamp, entries)
     print('Process completed.')
 
 

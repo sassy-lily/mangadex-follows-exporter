@@ -5,7 +5,7 @@ from os.path import join
 from typing import Self
 
 from base_exporter import BaseExporter
-from common import Manga
+from common import Entry, Manga
 from mangaupdates_client import MangaUpdatesClient, MangaUpdatesOutcomes
 
 
@@ -28,36 +28,36 @@ class MangaUpdatesExporter(BaseExporter):
         with open('mangaupdates.json', 'rt', encoding='utf-8') as file:
             return load(file)
 
-    def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
+    def export(self: Self, config: ConfigParser, timestamp: str, entries: list[Entry]) -> None:
         mappings = self._get_old_ids_mappings()
         cwd = getcwd()
         errors_path = join(cwd, f'mangaupdates-errors_{timestamp}.txt')
         with open(errors_path, 'wt', encoding='utf-8') as errors:
             with MangaUpdatesClient(config) as client:
                 count = 0
-                total = len(mangas)
+                total = len(entries)
                 print('[MangaUpdates] Retrieving already tracked entries.')
                 tracked_entries = set(client.get_list_entries())
-                for manga in mangas:
+                for entry in entries:
                     count += 1
-                    entry_id = self._get_entry_id(mappings, manga)
+                    entry_id = self._get_entry_id(mappings, entry.manga)
                     if entry_id is None:
-                        print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not have a MangaUpdates ID. "{manga.title}" ({manga.id})')
-                        errors.write(f'The entry does not have a MangaUpdates ID: {manga.title} ({manga.id}).')
+                        print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not have a MangaUpdates ID. "{entry.manga.title}" ({entry.manga.id})')
+                        errors.write(f'The entry does not have a MangaUpdates ID: {entry.manga.title} ({entry.manga.id}).')
                         continue
                     if entry_id in tracked_entries:
-                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked. "{manga.title}" ({manga.id})')
+                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked. "{entry.manga.title}" ({entry.manga.id})')
                         continue
                     outcome = client.add_entry_to_list(entry_id)
                     if outcome == MangaUpdatesOutcomes.SUCCESS:
                         tracked_entries.add(entry_id)
-                        print(f'[MangaUpdates] Entry {count} of {total} added. "{manga.title}" ({manga.id})')
+                        print(f'[MangaUpdates] Entry {count} of {total} added. "{entry.manga.title}" ({entry.manga.id})')
                     elif outcome == MangaUpdatesOutcomes.NOT_FOUND:
-                        print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not exist in MangaUpdates. "{manga.title}" ({manga.id})')
-                        errors.write(f'The entry does not exist in MangaUpdates: "{manga.title}" ({manga.id}).')
+                        print(f'[MangaUpdates] Entry {count} of {total} failed: the entry does not exist in MangaUpdates. "{entry.manga.title}" ({entry.manga.id})')
+                        errors.write(f'The entry does not exist in MangaUpdates: "{entry.manga.title}" ({entry.manga.id}).')
                     elif outcome == MangaUpdatesOutcomes.ALREADY_TRACKED:
-                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked, could this be a duplicate? "{manga.title}" ({manga.id})')
-                        errors.write(f'The entry is already tracked, is this an error? "{manga.title}" ({manga.id}).')
+                        print(f'[MangaUpdates] Entry {count} of {total} skipped: the entry is already tracked, could this be a duplicate? "{entry.manga.title}" ({entry.manga.id})')
+                        errors.write(f'The entry is already tracked, is this an error? "{entry.manga.title}" ({entry.manga.id}).')
                     else:
                         error = RuntimeError('Unexpected outcome.')
                         error.add_note(f'Outcome: {outcome}')

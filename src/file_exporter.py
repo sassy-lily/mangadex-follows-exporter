@@ -3,24 +3,23 @@ from collections.abc import Generator
 from typing import Self
 
 from base_exporter import BaseExporter
-from common import Manga
+from common import Entry
 
 
 class FileExporter(BaseExporter, ABC):
 
-    def _get_fields(self: Self, manga: Manga) -> Generator[str]:
-        alt_title_en = self._get_alternative_title(manga, 'en')
-        alt_title_ja_ro = self._get_alternative_title(manga, 'ja')
-        alt_title_ja = self._get_alternative_title(manga, 'ja-RO')
-        yield manga.id
-        yield manga.type
-        yield manga.status
-        yield manga.title_language
-        yield manga.title
-        yield alt_title_en
-        yield alt_title_ja_ro
-        yield alt_title_ja
-        yield manga.url
+    def _get_fields(self: Self, entry: Entry) -> Generator[str]:
+        yield entry.manga.id
+        yield entry.manga.type
+        yield entry.manga.status
+        yield entry.manga.title_language
+        yield entry.manga.title
+        yield self._get_alternative_title(entry.manga, 'en')
+        yield self._get_alternative_title(entry.manga, 'ja')
+        yield self._get_alternative_title(entry.manga, 'ja-RO')
+        yield str(entry.rating)
+        yield str(entry.personal_rating)
+        yield entry.manga.url
 
     @staticmethod
     def _get_headers() -> Generator[str]:
@@ -32,4 +31,6 @@ class FileExporter(BaseExporter, ABC):
         yield 'Alternative Title (EN)'
         yield 'Alternative Title (JA)'
         yield 'Alternative Title (romaji)'
+        yield 'Rating'
+        yield 'Personal Rating'
         yield 'URL'

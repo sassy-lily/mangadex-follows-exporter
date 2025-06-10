@@ -1,22 +1,22 @@
-import typing
+from typing import NamedTuple
 
 
-class Status(typing.NamedTuple):
+class Status(NamedTuple):
     id: str
     status: str
 
 
-class AlternativeTitle(typing.NamedTuple):
+class AlternativeTitle(NamedTuple):
     language: str
     title: str
 
 
-class ExternalLink(typing.NamedTuple):
+class ExternalLink(NamedTuple):
     key: str
     value: str
 
 
-class Manga(typing.NamedTuple):
+class Manga(NamedTuple):
     id: str
     type: str
     title_language: str
@@ -25,3 +25,10 @@ class Manga(typing.NamedTuple):
     alternative_titles: list[AlternativeTitle]
     external_links: list[ExternalLink]
     url: str
+
+
+class Entry(NamedTuple):
+    manga: Manga
+    rating: float
+    personal_rating: float | None
+    status: str
