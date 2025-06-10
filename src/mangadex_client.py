@@ -8,9 +8,12 @@ from requests import Session
 
 from base_client import BaseClient
 from common import AlternativeTitle, ExternalLink, Manga, Status
+from throttler import Throttler
 
 
 class MangaDexClient(BaseClient):
+
+    _THROTTLE_THRESHOLD = 0.5
 
     _authentication_expires_at: float
     _client_id: str
@@ -37,7 +40,6 @@ class MangaDexClient(BaseClient):
     def _authorize(self: Self) -> None:
         if self._authentication_expires_at > time():
             return
-        sleep(0.5)
         request_data = {
             'grant_type': 'password',
             'username': self._username,
@@ -45,7 +47,8 @@ class MangaDexClient(BaseClient):
             'client_id': self._client_id,
             'client_secret': self._client_secret
         }
-        response = self._session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', request_data)
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', request_data)
         if response.status_code != 200:
             raise self._get_error(response)
         response_data = response.json()
@@ -73,8 +76,8 @@ class MangaDexClient(BaseClient):
 
     def get_manga(self: Self, status: Status) -> Manga:
         self._authorize()
-        sleep(0.5)
-        response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
         if response.status_code != 200:
             raise self._get_error(response)
         data = response.json()
@@ -91,8 +94,8 @@ class MangaDexClient(BaseClient):
 
     def get_statuses(self: Self) -> list[Status]:
         self._authorize()
-        sleep(0.5)
-        response = self._session.get('https://api.mangadex.org/manga/status')
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.get('https://api.mangadex.org/manga/status')
         if response.status_code != 200:
             raise self._get_error(response)
         data = response.json()
