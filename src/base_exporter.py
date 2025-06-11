@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from configparser import ConfigParser
 from typing import Self
 
-from common import Manga
+from common import Entry, Manga
 
 
 class BaseExporter(ABC):
@@ -32,7 +32,7 @@ class BaseExporter(ABC):
             print('Invalid input.')
 
     @abstractmethod
-    def export(self: Self, config: ConfigParser, timestamp: str, mangas: list[Manga]) -> None:
+    def export(self: Self, config: ConfigParser, timestamp: str, entries: list[Entry]) -> None:
         raise NotImplementedError('This method has not been implemented.')
 
     def query_activation(self: Self) -> None:

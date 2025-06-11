@@ -1,6 +1,7 @@
-from collections import abc
+from collections.abc import Generator
 from configparser import ConfigParser
-from time import sleep, time
+from contextlib import AbstractContextManager
+from time import time
 from types import TracebackType
 from typing import Any, Self
 
@@ -8,9 +9,12 @@ from requests import Session
 
 from base_client import BaseClient
 from common import AlternativeTitle, ExternalLink, Manga, Status
+from throttler import Throttler
 
 
-class MangaDexClient(BaseClient):
+class MangaDexClient(BaseClient, AbstractContextManager):
+
+    _THROTTLE_THRESHOLD = 0.2
 
     _authentication_expires_at: float
     _client_id: str
@@ -37,7 +41,6 @@ class MangaDexClient(BaseClient):
     def _authorize(self: Self) -> None:
         if self._authentication_expires_at > time():
             return
-        sleep(0.5)
         request_data = {
             'grant_type': 'password',
             'username': self._username,
@@ -45,7 +48,8 @@ class MangaDexClient(BaseClient):
             'client_id': self._client_id,
             'client_secret': self._client_secret
         }
-        response = self._session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', request_data)
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.post('https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token', request_data)
         if response.status_code != 200:
             raise self._get_error(response)
         response_data = response.json()
@@ -56,7 +60,7 @@ class MangaDexClient(BaseClient):
         self._session.headers['Authorization'] = token_type + ' ' + access_token
 
     @staticmethod
-    def _get_alternative_titles(data: Any) -> abc.Generator[AlternativeTitle]:
+    def _get_alternative_titles(data: Any) -> Generator[AlternativeTitle]:
         if 'altTitles' not in data['data']['attributes'] or data['data']['attributes']['altTitles'] is None:
             return
         for entry in data['data']['attributes']['altTitles']:
@@ -65,7 +69,7 @@ class MangaDexClient(BaseClient):
             yield AlternativeTitle(language, title)
 
     @staticmethod
-    def _get_external_links(data: Any) -> abc.Generator[ExternalLink]:
+    def _get_external_links(data: Any) -> Generator[ExternalLink]:
         if 'links' not in data['data']['attributes'] or data['data']['attributes']['links'] is None:
             return
         for key, value in data['data']['attributes']['links'].items():
@@ -73,8 +77,8 @@ class MangaDexClient(BaseClient):
 
     def get_manga(self: Self, status: Status) -> Manga:
         self._authorize()
-        sleep(0.5)
-        response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.get(f'https://api.mangadex.org/manga/{status.id}')
         if response.status_code != 200:
             raise self._get_error(response)
         data = response.json()
@@ -89,17 +93,38 @@ class MangaDexClient(BaseClient):
         url = 'https://mangadex.org/title/' + data['data']['id']
         return Manga(entry_id, entry_type, title_language, title, status.status, alternative_titles, external_links, url)
 
-    def get_statuses(self: Self) -> list[Status]:
+    def get_personal_rating(self: Self, manga: Manga) -> float | None:
         self._authorize()
-        sleep(0.5)
-        response = self._session.get('https://api.mangadex.org/manga/status')
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.get(f'https://api.mangadex.org/rating?manga[]={manga.id}')
         if response.status_code != 200:
             raise self._get_error(response)
         data = response.json()
         if data['result'] != 'ok':
             raise self._get_error(response)
-        statuses = list[Status]()
+        if len(data['ratings']) == 0:
+            return None
+        return data['ratings'][manga.id]['rating']
+
+    def get_rating(self: Self, manga: Manga) -> float:
+        self._authorize()
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.get(f'https://api.mangadex.org/statistics/manga?manga[]={manga.id}')
+        if response.status_code != 200:
+            raise self._get_error(response)
+        data = response.json()
+        if data['result'] != 'ok':
+            raise self._get_error(response)
+        return data['statistics'][manga.id]['rating']['bayesian']
+
+    def get_statuses(self: Self) -> Generator[Status]:
+        self._authorize()
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.get('https://api.mangadex.org/manga/status')
+        if response.status_code != 200:
+            raise self._get_error(response)
+        data = response.json()
+        if data['result'] != 'ok':
+            raise self._get_error(response)
         for key, value in data['statuses'].items():
-            status = Status(key, value)
-            statuses.append(status)
-        return statuses
+            yield Status(key, value)

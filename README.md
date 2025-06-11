@@ -170,6 +170,7 @@ Other useful information:
 
 ## Sources
 
+* https://api.mangadex.org/docs/
 * https://api.mangadex.org/docs/redoc.html
 * https://api.mangadex.org/docs/swagger.html
 * https://api.mangaupdates.com/

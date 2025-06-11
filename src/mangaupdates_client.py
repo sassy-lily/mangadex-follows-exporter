@@ -1,12 +1,14 @@
-from collections import abc
+from collections.abc import Iterable
 from configparser import ConfigParser
+from contextlib import AbstractContextManager
 from enum import Enum
-from time import sleep
+from types import TracebackType
 from typing import Self
 
 from requests import Session
 
 from base_client import BaseClient
+from throttler import Throttler
 
 
 class MangaUpdatesOutcomes(Enum):
@@ -15,7 +17,9 @@ class MangaUpdatesOutcomes(Enum):
     ALREADY_TRACKED = 3
 
 
-class MangaUpdatesClient(BaseClient):
+class MangaUpdatesClient(BaseClient, AbstractContextManager):
+
+    _THROTTLE_THRESHOLD = 1.0
 
     _is_authenticated: bool
     _password: str
@@ -26,7 +30,7 @@ class MangaUpdatesClient(BaseClient):
         self._session = Session()
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback, /):
+    def __exit__(self: Self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> bool | None:
         self._session.close()
 
     def __init__(self: Self, config: ConfigParser) -> None:
@@ -38,12 +42,12 @@ class MangaUpdatesClient(BaseClient):
     def _authenticate(self: Self) -> None:
         if self._is_authenticated:
             return
-        sleep(1.1)
         request_data = {
             'username': self._username,
             'password': self._password
         }
-        response = self._session.put('https://api.mangaupdates.com/v1/account/login', json=request_data)
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.put('https://api.mangaupdates.com/v1/account/login', json=request_data)
         if response.status_code != 200:
             raise self._get_error(response)
         response_data = response.json()
@@ -54,7 +58,6 @@ class MangaUpdatesClient(BaseClient):
 
     def add_entry_to_list(self: Self, entry_id: int) -> MangaUpdatesOutcomes:
         self._authenticate()
-        sleep(1.1)
         request_data = [
             {
                 'series': {
@@ -63,7 +66,8 @@ class MangaUpdatesClient(BaseClient):
                 'list_id': 0
             }
         ]
-        response = self._session.post('https://api.mangaupdates.com/v1/lists/series', json=request_data)
+        with Throttler(self._THROTTLE_THRESHOLD):
+            response = self._session.post('https://api.mangaupdates.com/v1/lists/series', json=request_data)
         if response.status_code == 200:
             return MangaUpdatesOutcomes.SUCCESS
         if response.status_code == 400:
@@ -76,17 +80,17 @@ class MangaUpdatesClient(BaseClient):
             raise self._get_error(response)
         raise self._get_error(response)
 
-    def get_list_entries(self: Self) -> abc.Iterable[int]:
+    def get_list_entries(self: Self) -> Iterable[int]:
         self._authenticate()
         page = 1
         size = 100
         while True:
-            sleep(1.1)
             request_data = {
                 'page': page,
                 'perpage': size
             }
-            response = self._session.post('https://api.mangaupdates.com/v1/lists/0/search', json=request_data)
+            with Throttler(self._THROTTLE_THRESHOLD):
+                response = self._session.post('https://api.mangaupdates.com/v1/lists/0/search', json=request_data)
             if response.status_code != 200:
                 raise self._get_error(response)
             response_data = response.json()
