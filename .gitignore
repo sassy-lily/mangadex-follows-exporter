@@ -4,3 +4,13 @@ build
 dist
 mangadex_follows_exporter.spec
 src/__pycache__
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.env
