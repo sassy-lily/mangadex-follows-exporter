@@ -1,0 +1,56 @@
+# Sample configuration for mangadex-follows-exporter.
+#
+# Secrets are NEVER stored here — the *_env keys name the environment variables
+# (loaded from .env or the real environment) that hold each credential.
+
+auth:
+  # MangaDex OAuth2 (ROPC) against Keycloak — NOT the API host.
+  token_url: https://auth.mangadex.org/realms/mangadex/protocol/openid-connect/token
+  flow: password
+  username_env: MANGADEX_USERNAME
+  password_env: MANGADEX_PASSWORD
+  client_id_env: MANGADEX_CLIENT_ID
+  client_secret_env: MANGADEX_CLIENT_SECRET
+
+api:
+  base_url: https://api.mangadex.org
+  headers: {}
+  timeout: 30
+  max_retries: 5
+  backoff_factor: 1.0
+  rate_limit: 5.0          # requests/second (global MangaDex cap is ~5)
+
+source:
+  status: null             # null = all statuses; or e.g. [reading, completed]
+  batch_size: 100          # ids per /manga, /chapter request (max 100)
+
+exports:
+  - name: csv
+    type: csv
+    path: ./exports/mangadex-{datetime}.csv
+    on_existing: overwrite           # overwrite | error-if-exists
+    delimiter: ","
+    encoding: utf-8
+
+  - name: xlsx
+    type: xlsx
+    path: ./exports/mangadex-{date}.xlsx
+    on_existing: overwrite
+    sheet_name: manga
+
+  - name: mangaupdates
+    type: mangaupdates
+    base_url: https://api.mangaupdates.com/v1
+    # MUST differ from the MangaDex credential env vars above.
+    username_env: MANGAUPDATES_USERNAME
+    password_env: MANGAUPDATES_PASSWORD
+    old_ids_path: docs/mangaupdates.json
+    batch_size: 100
+    update_delay: 5.0                # seconds between write requests (412 guard)
+    status_list_map:
+      reading: 0
+      re_reading: 0
+      plan_to_read: 1
+      completed: 2
+      dropped: 3
+      on_hold: 4
