@@ -143,6 +143,7 @@ class MangaUpdatesExportConfig(BaseModel):
     status_list_map: dict[MangaDexStatus, int] = Field(
         default_factory=lambda: dict(DEFAULT_STATUS_LIST_MAP)
     )
+    old_ids_path: str = "docs/mangaupdates.json"
     batch_size: int = Field(default=100, ge=1, le=100)
     timeout: float = 30.0
     max_retries: int = 5
