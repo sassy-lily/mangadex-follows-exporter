@@ -56,6 +56,7 @@ def fetch_manga_details(
         uuids,
         param_name="ids[]",
         extra_params=[("limit", batch_size)],
+        chunk_size=batch_size,
     ):
         for manga in payload.get("data", []):
             uuid = manga.get("id")
@@ -66,10 +67,12 @@ def fetch_manga_details(
 
 
 def fetch_personal_ratings(
-    client: MangaDexClient, uuids: list[str]
+    client: MangaDexClient, uuids: list[str], batch_size: int
 ) -> dict[str, int]:
     ratings: dict[str, int] = {}
-    for payload in client.get_chunked("/rating", uuids, param_name="manga"):
+    for payload in client.get_chunked(
+        "/rating", uuids, param_name="manga", chunk_size=batch_size
+    ):
         for uuid, entry in (payload.get("ratings") or {}).items():
             rating = entry.get("rating") if isinstance(entry, dict) else None
             if isinstance(rating, int):
@@ -78,11 +81,11 @@ def fetch_personal_ratings(
 
 
 def fetch_global_ratings(
-    client: MangaDexClient, uuids: list[str]
+    client: MangaDexClient, uuids: list[str], batch_size: int
 ) -> dict[str, float | None]:
     averages: dict[str, float | None] = {}
     for payload in client.get_chunked(
-        "/statistics/manga", uuids, param_name="manga[]"
+        "/statistics/manga", uuids, param_name="manga[]", chunk_size=batch_size
     ):
         for uuid, entry in (payload.get("statistics") or {}).items():
             rating = entry.get("rating") if isinstance(entry, dict) else None
@@ -92,7 +95,7 @@ def fetch_global_ratings(
 
 
 def _fetch_read_markers(
-    client: MangaDexClient, uuids: list[str]
+    client: MangaDexClient, uuids: list[str], batch_size: int
 ) -> dict[str, list[str]]:
     """``{manga_uuid: [chapter_uuid, ...]}`` from grouped read markers."""
     grouped: dict[str, list[str]] = {}
@@ -101,6 +104,7 @@ def _fetch_read_markers(
         uuids,
         param_name="ids[]",
         extra_params=[("grouped", "true")],
+        chunk_size=batch_size,
     ):
         data = payload.get("data")
         if isinstance(data, dict):
@@ -119,6 +123,7 @@ def _fetch_chapter_numbers(
         chapter_ids,
         param_name="ids[]",
         extra_params=[("limit", batch_size)],
+        chunk_size=batch_size,
     ):
         for chapter in payload.get("data", []):
             cid = chapter.get("id")
@@ -134,7 +139,7 @@ def _fetch_chapter_numbers(
 def fetch_read_progress(
     client: MangaDexClient, uuids: list[str], batch_size: int
 ) -> dict[str, ReadProgress]:
-    grouped = _fetch_read_markers(client, uuids)
+    grouped = _fetch_read_markers(client, uuids, batch_size)
     all_chapter_ids = sorted({cid for ids in grouped.values() for cid in ids})
     if not all_chapter_ids:
         return {}
@@ -172,8 +177,8 @@ def build_dataset(
     read_progress: dict[str, ReadProgress] = {}
     if include_extras:
         present = [u for u in uuids if u in details]
-        ratings = fetch_personal_ratings(client, present)
-        global_ratings = fetch_global_ratings(client, present)
+        ratings = fetch_personal_ratings(client, present, source.batch_size)
+        global_ratings = fetch_global_ratings(client, present, source.batch_size)
         read_progress = fetch_read_progress(client, present, source.batch_size)
 
     dataset = Dataset()

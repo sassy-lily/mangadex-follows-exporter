@@ -192,14 +192,17 @@ class MangaDexClient:
         *,
         param_name: str,
         extra_params: Sequence[tuple[str, Any]] | None = None,
+        chunk_size: int = _MAX_IDS_PER_REQUEST,
     ) -> Iterator[JsonDict]:
-        """Yield one JSON payload per <=100-id batch.
+        """Yield one JSON payload per id batch.
 
         ``param_name`` is passed verbatim (e.g. ``ids[]``, ``manga``,
         ``manga[]``) so each endpoint's exact serialization is preserved.
+        ``chunk_size`` is clamped to the 100-id-per-request API cap.
         """
+        size = max(1, min(chunk_size, _MAX_IDS_PER_REQUEST))
         extras = list(extra_params or [])
-        for chunk in _chunked(list(ids), _MAX_IDS_PER_REQUEST):
+        for chunk in _chunked(list(ids), size):
             params: list[tuple[str, Any]] = [
                 *extras,
                 *((param_name, value) for value in chunk),
